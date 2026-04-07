@@ -23,7 +23,7 @@ Installation & Running the App
 3. Open the terminal and run: npx expo start
 4. Scan the QR code using Expo Go.
 5. Start developing.
---------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Daily Workflow (Before You Start Developing)
 1. Open your project in VS Code.
 2. Open the terminal and make sure you are on your branch: git checkout <your-branch-name>
