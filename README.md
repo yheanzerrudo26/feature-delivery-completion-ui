@@ -1,6 +1,4 @@
-# Document Heading
-
-Mabuli Leather Works - Setup Guide
+# Mabuli Leather Works - Setup Guide
 
 Clone the Repository
 
