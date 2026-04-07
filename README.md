@@ -1,13 +1,16 @@
 ### Mabuli-Leather-Works
 
 ### start App
+```
 npx expo start
-
+```
 ### Login admin
+```
 Email: admin
 Password: admin
-
+```
 ### Project Structure
+```
 Mabuli/
 ├─ .expo/
 ├─ .git/
@@ -63,5 +66,4 @@ Mabuli/
       ├─ _layout.tsx
       ├─ explore.tsx
       └─ index.tsx
-
-      
+```
