@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, Alert } from 'react-native';
+import { registerUser } from '../services/auth.service'; 
 
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
@@ -15,9 +15,16 @@ export default function RegisterScreen() {
     return requiredValues.some((value) => !value.trim()) || password !== confirmPassword;
   }, [firstName, lastName, email, password, confirmPassword]);
 
-  const onRegister = () => {
+  const onRegister = async () => {
+  try {
+    const name = `${firstName} ${lastName}`;
+    await registerUser(email, password, name);
+    Alert.alert('Success', 'Account created successfully!');
     router.replace('/login');
-  };
+  } catch (error: any) {
+    Alert.alert('Registration Error', error.message || 'Something went wrong');
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -122,3 +129,4 @@ const styles = StyleSheet.create({
   smallText: { color: '#4A5670', fontSize: 15 },
   linkText: { color: '#173B70', textDecorationLine: 'underline', fontSize: 15, fontWeight: '700' },
 });
+

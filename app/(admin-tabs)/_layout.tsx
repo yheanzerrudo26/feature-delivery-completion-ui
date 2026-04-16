@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
+import React from 'react';
 
 export default function AdminTabLayout() {
   const insets = useSafeAreaInsets();

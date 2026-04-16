@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View, Alert } from 'react-native';
+import { loginUser } from '../services/auth.service';
+
 
 function isAdminEmail(email: string) {
   const value = email.trim().toLowerCase();
@@ -18,6 +20,15 @@ export default function LoginScreen() {
       return;
     }
     router.replace('/user-dashboard');
+  };
+
+  const handleLogin = async () => {
+    try {
+      await loginUser(email, password);
+      onLogin(); 
+    } catch (e: any) {
+      Alert.alert("Login Error", e.message || "Something went wrong");
+    }
   };
 
   return (
@@ -48,7 +59,7 @@ export default function LoginScreen() {
 
         <Pressable
           style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}
-          onPress={onLogin}
+          onPress={handleLogin}
           disabled={disabled}>
           <Text style={styles.primaryButtonText}>Login</Text>
         </Pressable>
