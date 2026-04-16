@@ -1,14 +1,95 @@
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
+import { auth, db } from '@/config/firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { router } from 'expo-router';
+import { addLog } from '@/services/log.service';
 
 export default function EditProfileScreen() {
   const { palette } = useAppTheme();
-  const [firstName, setFirstName] = useState('Alex');
-  const [lastName, setLastName] = useState('Mabuli');
+
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+
+  const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    setEmail(user.email || '');
+
+    const ref = doc(db, 'users', user.uid);
+
+    const unsubscribe = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+
+        setFirstName(data.firstName || '');
+        setLastName(data.lastName || '');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleSave = async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+    const isEmailChanged = email !== user.email;
+    const isPasswordChanged = password.length >= 6;
+
+    if (isEmailChanged || isPasswordChanged) {
+      if (!currentPassword) {
+        alert('Enter current password to change email or password');
+        return;
+      }
+
+      const credential = EmailAuthProvider.credential(
+        user.email!,
+        currentPassword
+      );
+
+      await reauthenticateWithCredential(user, credential);
+    }
+
+    if (isEmailChanged) {
+      await updateEmail(user, email);
+      await user.reload();
+    }
+
+    if (isPasswordChanged) {
+      await updatePassword(user, password);
+    }
+
+    await setDoc(
+      doc(db, 'users', user.uid),
+      {
+        firstName,
+        lastName,
+        email,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+
+    await addLog('profileUpdate', 'User updated profile');
+
+    alert('Profile updated successfully!');
+    router.back();
+
+  } catch (error: any) {
+    console.log(error);
+    alert(error.message || 'Failed to update profile');
+  }
+};
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top']}>
@@ -16,10 +97,26 @@ export default function EditProfileScreen() {
 
       <View style={[styles.card, { backgroundColor: palette.card }]}>
         <Text style={[styles.label, { color: palette.textSecondary }]}>First Name</Text>
-        <TextInput style={[styles.input, { backgroundColor: palette.softCard, color: palette.textPrimary }]} value={firstName} onChangeText={setFirstName} />
+        <TextInput
+          style={[styles.input, { backgroundColor: palette.softCard, color: palette.textPrimary }]}
+          value={firstName}
+          onChangeText={setFirstName}
+        />
 
         <Text style={[styles.label, { color: palette.textSecondary }]}>Last Name</Text>
-        <TextInput style={[styles.input, { backgroundColor: palette.softCard, color: palette.textPrimary }]} value={lastName} onChangeText={setLastName} />
+        <TextInput
+          style={[styles.input, { backgroundColor: palette.softCard, color: palette.textPrimary }]}
+          value={lastName}
+          onChangeText={setLastName}
+        />
+
+        <Text style={[styles.label, { color: palette.textSecondary }]}>Email</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: palette.softCard, color: palette.textPrimary }]}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+        />
 
         <Text style={[styles.label, { color: palette.textSecondary }]}>Current Password</Text>
         <TextInput
@@ -27,8 +124,6 @@ export default function EditProfileScreen() {
           value={currentPassword}
           onChangeText={setCurrentPassword}
           secureTextEntry
-          placeholder="Current password"
-          placeholderTextColor={palette.textSecondary}
         />
 
         <Text style={[styles.label, { color: palette.textSecondary }]}>New Password</Text>
@@ -37,11 +132,9 @@ export default function EditProfileScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          placeholder="New password"
-          placeholderTextColor={palette.textSecondary}
         />
 
-        <Pressable style={styles.saveButton}>
+        <Pressable style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>Save changes</Text>
         </Pressable>
       </View>
@@ -54,7 +147,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: '700' },
   card: { borderRadius: 20, padding: 16 },
   label: { fontSize: 15, marginBottom: 6, marginTop: 8 },
-  input: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, fontSize: 16 },
+  input: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
   saveButton: {
     marginTop: 16,
     backgroundColor: '#173B70',
@@ -62,5 +160,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  saveButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
 });

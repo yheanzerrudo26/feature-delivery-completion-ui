@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
+import React from 'react';
 
 const payments = [
   { name: 'Aria Gomez', service: 'Repair & Conditioning', status: 'Paid', amount: '₱2,850' },

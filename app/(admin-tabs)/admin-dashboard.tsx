@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
+import React from 'react';
 
 const metrics = [
   { label: 'Confirmation Form', value: 14 },

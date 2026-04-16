@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
+import React from 'react';
 
 const forms = [
   { name: 'Mia Santos', service: 'Heritage Conditioning' },

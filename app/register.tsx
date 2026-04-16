@@ -18,11 +18,35 @@ export default function RegisterScreen() {
   const onRegister = async () => {
   try {
     const name = `${firstName} ${lastName}`;
-    await registerUser(email, password, name);
+    await registerUser(email.trim(), password, name);
+
     Alert.alert('Success', 'Account created successfully!');
     router.replace('/login');
   } catch (error: any) {
-    Alert.alert('Registration Error', error.message || 'Something went wrong');
+    let message = 'Something went wrong';
+
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        message = 'This email is already registered. Try logging in instead.';
+        break;
+
+      case 'auth/invalid-email':
+        message = 'The email address is not valid.';
+        break;
+
+      case 'auth/weak-password':
+        message = 'Password should be at least 6 characters.';
+        break;
+
+      case 'auth/network-request-failed':
+        message = 'Network error. Please check your internet connection.';
+        break;
+
+      default:
+        message = error.message;
+    }
+
+    Alert.alert('Registration Error', message);
   }
 };
 
@@ -34,17 +58,17 @@ export default function RegisterScreen() {
         <Text style={styles.subtitle}>Join the Mabuli Leather Works portal for artisans and clients.</Text>
 
         <Text style={styles.label}>First Name</Text>
-        <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="Jane" />
+        <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="Name" />
 
         <Text style={styles.label}>Last Name</Text>
-        <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Artisan" />
+        <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last Name" />
 
         <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="you@example.com"
+          placeholder="Email"
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -54,7 +78,7 @@ export default function RegisterScreen() {
           style={styles.input}
           value={password}
           onChangeText={setPassword}
-          placeholder="••••••••"
+          placeholder="Password"
           secureTextEntry
         />
 
@@ -63,7 +87,7 @@ export default function RegisterScreen() {
           style={styles.input}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          placeholder="••••••••"
+          placeholder="Confirm Password"
           secureTextEntry
         />
 

@@ -1,6 +1,7 @@
 import { StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
+import React from 'react';
 
 export default function SettingsScreen() {
   const { isDark, setMode, palette } = useAppTheme();

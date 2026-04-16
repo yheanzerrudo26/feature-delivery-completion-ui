@@ -5,6 +5,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppThemeProvider } from '@/context/app-theme-context';
+import React from 'react';
 
 export const unstable_settings = {
   anchor: 'index',

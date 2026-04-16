@@ -2,34 +2,53 @@ import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, Alert } from 'react-native';
 import { loginUser } from '../services/auth.service';
-
-
-function isAdminEmail(email: string) {
-  const value = email.trim().toLowerCase();
-  return value === 'admin@mabuli.com' || value.startsWith('admin');
-}
+import { getUserRole } from '../services/user.service';
+import { addLog } from "@/services/log.service";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const disabled = useMemo(() => !email.trim() || !password.trim(), [email, password]);
 
-  const onLogin = () => {
-    if (isAdminEmail(email)) {
-      router.replace('/(admin-tabs)/admin-dashboard');
-      return;
-    }
-    router.replace('/user-dashboard');
-  };
-
   const handleLogin = async () => {
-    try {
-      await loginUser(email, password);
-      onLogin(); 
-    } catch (e: any) {
-      Alert.alert("Login Error", e.message || "Something went wrong");
+  try {
+    const result = await loginUser(email.trim(), password);
+
+    const role = await getUserRole(result.user.uid);
+
+    await addLog("login", "User logged in");
+
+    if (role === "admin") {
+      router.replace('/(admin-tabs)/admin-dashboard');
+    } else {
+      router.replace('/user-dashboard');
     }
-  };
+  } catch (e: any) {
+  let message = "Unable to sign in. Please try again.";
+
+  switch (e.code) {
+    case "auth/invalid-email":
+      message = "Please enter a valid email address.";
+      break;
+    case "auth/user-not-found":
+      message = "No account found with this email.";
+      break;
+    case "auth/wrong-password":
+      message = "Incorrect password. Please try again.";
+      break;
+    case "auth/invalid-credential":
+      message = "Invalid email or password.";
+      break;
+    case "auth/too-many-requests":
+      message = "Too many failed attempts. Please try again later.";
+      break;
+    case "auth/network-request-failed":
+      message = "Network error. Check your internet connection.";
+      break;
+  }
+
+  Alert.alert("Login Failed", message);
+}};
 
   return (
     <View style={styles.container}>
@@ -43,7 +62,7 @@ export default function LoginScreen() {
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="you@example.com"
+          placeholder="Email"
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -53,7 +72,7 @@ export default function LoginScreen() {
           style={styles.input}
           value={password}
           onChangeText={setPassword}
-          placeholder="••••••••"
+          placeholder="Password"
           secureTextEntry
         />
 

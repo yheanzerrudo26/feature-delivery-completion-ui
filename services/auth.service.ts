@@ -1,9 +1,8 @@
 import { auth, db } from "../config/firebase";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
+import {createUserWithEmailAndPassword, signInWithEmailAndPassword,} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { addLog } from "./log.service";
+
 
 export const registerUser = async (
   email: string,
@@ -15,9 +14,11 @@ export const registerUser = async (
   await setDoc(doc(db, "users", res.user.uid), {
     name,
     email,
-    role: "client",
+    role: "user",
     createdAt: new Date(),
   });
+
+  await addLog("register", "New user registered");
 
   return res.user;
 };

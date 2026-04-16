@@ -2,9 +2,39 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
+import React, { useEffect, useState } from 'react';
+import { auth, db } from '@/config/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function ProfileScreen() {
   const { palette } = useAppTheme();
+
+  const [userData, setUserData] = useState<any>(null);
+  const [authEmail, setAuthEmail] = useState('');
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    setAuthEmail(user.email || '');
+
+    const ref = doc(db, 'users', user.uid);
+
+    const unsubscribe = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+
+        setUserData({
+          ...data,
+          email: data.email || user.email, // fallback
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top']}>
@@ -12,27 +42,62 @@ export default function ProfileScreen() {
 
       <View style={[styles.card, { backgroundColor: palette.card }]}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>A</Text>
+          <Text style={styles.avatarText}>
+            {userData?.firstName?.charAt(0) || 'A'}
+          </Text>
         </View>
-        <Text style={[styles.name, { color: palette.textPrimary }]}>Alex Mabuli</Text>
-        <Text style={[styles.email, { color: palette.textSecondary }]}>alex.mabuli@mail.com</Text>
 
-        <Text style={[styles.settingsLabel, { color: palette.textSecondary }]}>ACCOUNT SETTINGS</Text>
+        <Text style={[styles.name, { color: palette.textPrimary }]}>
+          {fullName || 'Loading...'}
+        </Text>
 
-        <Pressable style={[styles.settingButton, { backgroundColor: palette.softCard }]} onPress={() => router.push('/(admin-tabs)/edit-profile')}>
-          <Text style={[styles.settingText, { color: palette.textPrimary }]}>Edit profile</Text>
-        </Pressable>
-        <View style={[styles.settingButton, { backgroundColor: palette.softCard }]}>
-          <Text style={[styles.settingText, { color: palette.textPrimary }]}>Manage users</Text>
-        </View>
-        <Pressable style={[styles.settingButton, { backgroundColor: palette.softCard }]} onPress={() => router.push('/(admin-tabs)/admin-view-logs')}>
-          <Text style={[styles.settingText, { color: palette.textPrimary }]}>View logs</Text>
-        </Pressable>
-        <Pressable style={[styles.settingButton, { backgroundColor: palette.softCard }]} onPress={() => router.push('/(admin-tabs)/settings')}>
-          <Text style={[styles.settingText, { color: palette.textPrimary }]}>Settings</Text>
+        <Text style={[styles.email, { color: palette.textSecondary }]}>
+          {userData?.email || authEmail || 'Loading...'}
+        </Text>
+
+        <Text style={[styles.settingsLabel, { color: palette.textSecondary }]}>
+          ACCOUNT SETTINGS
+        </Text>
+
+        <Pressable
+          style={[styles.settingButton, { backgroundColor: palette.softCard }]}
+          onPress={() => router.push('/(admin-tabs)/edit-profile')}
+        >
+          <Text style={[styles.settingText, { color: palette.textPrimary }]}>
+            Edit profile
+          </Text>
         </Pressable>
 
-        <Pressable style={styles.logoutButton} onPress={() => router.replace('/login')}>
+        <Pressable
+          style={[styles.settingButton, { backgroundColor: palette.softCard }]}
+        >
+          <Text style={[styles.settingText, { color: palette.textPrimary }]}>
+            Manage users
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.settingButton, { backgroundColor: palette.softCard }]}
+          onPress={() => router.push('/(admin-tabs)/admin-view-logs')}
+        >
+          <Text style={[styles.settingText, { color: palette.textPrimary }]}>
+            View logs
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.settingButton, { backgroundColor: palette.softCard }]}
+          onPress={() => router.push('/(admin-tabs)/settings')}
+        >
+          <Text style={[styles.settingText, { color: palette.textPrimary }]}>
+            Settings
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => router.replace('/login')}
+        >
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
       </View>
@@ -60,7 +125,12 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontSize: 40, fontWeight: '700' },
   name: { fontSize: 36, fontWeight: '700' },
   email: { fontSize: 22, marginTop: 4 },
-  settingsLabel: { alignSelf: 'flex-start', marginTop: 20, marginBottom: 8, letterSpacing: 2 },
+  settingsLabel: {
+    alignSelf: 'flex-start',
+    marginTop: 20,
+    marginBottom: 8,
+    letterSpacing: 2,
+  },
   settingButton: {
     width: '100%',
     borderRadius: 16,
