@@ -5,6 +5,12 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
+    files: ['**/*.{js,jsx}'],
+    rules: {
+      'import/no-unresolved': ['error', { ignore: ['^@/'] }],
+    },
+  },
+  {
     ignores: ['dist/*'],
   },
 ]);
