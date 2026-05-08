@@ -6,7 +6,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 
-// ⬇️ Import Firebase
 import { auth, db } from '@/backend/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
@@ -14,13 +13,10 @@ export default function UserDashboardScreen() {
   const { palette } = useAppTheme();
   const { requests, setSelectedOrder } = useUserRequest();
 
-  // ⏱️ Realtime date
   const [today, setToday] = useState('');
-  // 👤 Realtime user data
   const [userData, setUserData] = useState(null);
 
   useEffect(() => {
-    // Date updater
     const updateDate = () => {
       const now = new Date();
       const options = { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' };
@@ -32,7 +28,6 @@ export default function UserDashboardScreen() {
   }, []);
 
   useEffect(() => {
-    // Firestore listener for user profile
     const user = auth.currentUser;
     if (!user) return;
 
@@ -51,7 +46,6 @@ export default function UserDashboardScreen() {
     return () => unsubscribe();
   }, []);
 
-  // Compute display name same as Profile
   const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
   const displayName = fullName || userData?.name || 'Client';
 
@@ -62,9 +56,7 @@ export default function UserDashboardScreen() {
           <View>
             <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>HOME - MY REQUESTS</Text>
             <Text style={[styles.title, { color: palette.textPrimary }]}>Welcome back,</Text>
-            {/* 👤 Realtime name here */}
             <Text style={[styles.heroName, { color: palette.textPrimary }]}>{displayName}</Text>
-            {/* ⏱️ Realtime date here */}
             <Text style={[styles.date, { color: palette.textSecondary }]}>{today}</Text>
           </View>
         </View>

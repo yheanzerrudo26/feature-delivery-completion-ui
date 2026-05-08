@@ -10,8 +10,8 @@ import {
   View,
 } from "react-native";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/backend/firebase"; // 👈 your firebase.js config
-import { fetchUserRole } from "@/backend/services/auth.service"; // 👈 new helper
+import { auth } from "@/backend/firebase"; 
+import { fetchUserRole } from "@/backend/services/auth.service";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -23,7 +23,6 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      // Sign in with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
@@ -31,7 +30,6 @@ export default function LoginScreen() {
       );
       const uid = userCredential.user.uid;
 
-      // Fetch role from backend
       const roleData = await fetchUserRole(uid);
       const role = roleData.role || "user";
 

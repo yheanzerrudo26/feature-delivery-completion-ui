@@ -1,10 +1,8 @@
-// frontend/services/auth.service.js
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/backend/firebase";
 
 const API_URL = "http://192.168.1.22:5000/api/auth";
 
-// Register still goes through backend
 export const registerUser = async (email, password, firstName, lastName) => {
   const response = await fetch(`${API_URL}/register`, {
     method: "POST",
@@ -14,7 +12,7 @@ export const registerUser = async (email, password, firstName, lastName) => {
       password,
       firstName,
       lastName,
-      role: "user", // default role
+      role: "user", 
     }),
   });
 
@@ -23,10 +21,9 @@ export const registerUser = async (email, password, firstName, lastName) => {
     throw error;
   }
 
-  return await response.json(); // backend returns uid, email, role
+  return await response.json();
 };
 
-// Login with Firebase Auth directly
 export const loginUser = async (email, password) => {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
   return {
@@ -35,7 +32,6 @@ export const loginUser = async (email, password) => {
   };
 };
 
-// Fetch role from backend after login
 export const fetchUserRole = async (uid) => {
   const response = await fetch(`${API_URL}/role/${uid}`, {
     method: "GET",
@@ -47,5 +43,5 @@ export const fetchUserRole = async (uid) => {
     throw error;
   }
 
-  return await response.json(); // { role: "admin" | "user" }
+  return await response.json(); 
 };

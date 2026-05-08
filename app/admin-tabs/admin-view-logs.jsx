@@ -13,7 +13,7 @@ export default function AdminViewLogsScreen() {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'logs'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id, // date
+        id: doc.id,
         items: doc.data().items || []
       }));
 

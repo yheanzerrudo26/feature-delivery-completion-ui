@@ -19,7 +19,6 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-// backend/services/auth.service.js
 export async function loginUser(email, password) {
   const response = await fetch("http://localhost:5000/api/auth/login", {
     method: "POST",

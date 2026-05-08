@@ -14,10 +14,10 @@ export default function AdminDashboardScreen() {
       setToday(now.toLocaleDateString(undefined, options));
     };
 
-    updateDate(); // run once on mount
+    updateDate();
     const interval = setInterval(updateDate, 60 * 1000); // refresh every minute
 
-    return () => clearInterval(interval); // cleanup
+    return () => clearInterval(interval); 
   }, []);
 
   const metrics = [
