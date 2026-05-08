@@ -1,4 +1,4 @@
-import { db } from '@/config/firebase';
+import { db } from '@/backend/firebase';
 import { useAppTheme } from '@/context/app-theme-context';
 import { router } from 'expo-router';
 import { collection, onSnapshot } from 'firebase/firestore';

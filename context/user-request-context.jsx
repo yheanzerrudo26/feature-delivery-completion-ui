@@ -1,4 +1,4 @@
-import { auth, db } from '@/config/firebase';
+import { auth, db } from '@/backend/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -254,6 +254,7 @@ export function UserRequestProvider({ children }) {
   const returnFee = draft.paymentMethod === 'online' ? 150 : 0;
   const total = serviceFee + pickupFee + returnFee;
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const submitDraft = () => {
     const nextNumber = 312 + requests.filter((request) => request.order.startsWith('#')).length;
     const order = `#${nextNumber}`;
@@ -322,7 +323,7 @@ export function UserRequestProvider({ children }) {
       returnFee,
       total,
     }),
-    [draft, requests, selectedOrder, userProfile, completedPhotos, allPhotosUploaded, serviceFee, pickupFee, returnFee, total]
+    [draft, requests, selectedOrder, userProfile, submitDraft, completedPhotos, allPhotosUploaded, serviceFee, pickupFee, returnFee, total]
   );
 
   return <UserRequestContext.Provider value={value}>{children}</UserRequestContext.Provider>;

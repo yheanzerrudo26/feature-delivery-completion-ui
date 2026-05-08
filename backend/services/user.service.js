@@ -1,5 +1,5 @@
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../config/firebase";
+import { db } from "../firebase";
 
 export const getUserRole = async (uid) => {
   try {

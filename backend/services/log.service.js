@@ -1,4 +1,4 @@
-import { db } from "@/config/firebase";
+import { db } from "@/backend/firebase";
 import { arrayUnion, doc, setDoc } from "firebase/firestore";
 
 export const addLog = async (

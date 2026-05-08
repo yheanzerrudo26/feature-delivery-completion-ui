@@ -1,4 +1,4 @@
-import { auth, db } from '@/config/firebase';
+import { auth, db } from '@/backend/firebase';
 import { useAppTheme } from '@/context/app-theme-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
