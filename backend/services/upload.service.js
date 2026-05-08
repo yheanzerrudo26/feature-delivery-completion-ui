@@ -1,5 +1,5 @@
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { storage } from "../config/firebase";
+import { storage } from "../firebase";
 
 export const uploadImage = async (uri, path) => {
   const response = await fetch(uri);

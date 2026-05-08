@@ -1,23 +1,39 @@
 import { addLog } from "@/backend/services/log.service";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View, } from "react-native";
-import { loginUser } from "../../backend/services/auth.service";
-import { getUserRole } from "../../backend/services/user.service";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/backend/firebase"; // 👈 your firebase.js config
+import { fetchUserRole } from "@/backend/services/auth.service"; // 👈 new helper
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const disabled = useMemo(
     () => !email.trim() || !password.trim(),
-    [email, password],
+    [email, password]
   );
 
   const handleLogin = async () => {
     try {
-      const result = await loginUser(email.trim(), password);
+      // Sign in with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
+      const uid = userCredential.user.uid;
 
-      const role = await getUserRole(result.user.uid);
+      // Fetch role from backend
+      const roleData = await fetchUserRole(uid);
+      const role = roleData.role || "user";
 
       await addLog("login", "User logged in");
 
