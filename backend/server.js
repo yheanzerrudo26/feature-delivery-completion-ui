@@ -32,6 +32,7 @@ app.use("/api/photos", photoRoutes);
 app.use("/api/workflow", workflowRoutes);
 app.use("/api/inventory", inventoryRoutes);
 
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

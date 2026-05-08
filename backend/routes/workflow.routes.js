@@ -1,4 +1,3 @@
-// backend/routes/checklist.routes.js
 import express from "express";
 const router = express.Router();
 

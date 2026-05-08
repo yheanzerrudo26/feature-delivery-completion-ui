@@ -1,4 +1,3 @@
-// backend/routes/auth.routes.js
 import express from "express";
 import { auth, db } from "../services/firebase.service.js";
 import {
@@ -9,7 +8,6 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const router = express.Router();
 
-// Register
 router.post("/register", async (req, res) => {
   const { email, password, firstName, lastName, role } = req.body;
   try {
@@ -31,7 +29,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Login
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -47,7 +44,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Get role by UID
 router.get("/role/:uid", async (req, res) => {
   const { uid } = req.params;
   try {
@@ -55,7 +51,7 @@ router.get("/role/:uid", async (req, res) => {
     if (roleDoc.exists()) {
       res.json({ role: roleDoc.data().role });
     } else {
-      res.json({ role: "user" }); // fallback
+      res.json({ role: "user" });
     }
   } catch (error) {
     res.status(400).json({ code: error.code, message: error.message });

@@ -1,23 +1,14 @@
-### Register
-POST http://192.168.1.22:5000/api/auth/register
+### Add a log manually (optional test)
+POST http://192.168.1.22:5000/api/logs/add
 Content-Type: application/json
 
 {
-  "email": "testuser@example.com",
-  "password": "password123",
-  "firstName": "Test",
-  "lastName": "User",
-  "role": "user"
+  "type": "test",
+  "message": "Manual log entry from VS Code"
 }
 
-### Login
-POST http://192.168.1.22:5000/api/auth/login
-Content-Type: application/json
+### Get all logs
+GET http://192.168.1.22:5000/api/logs
 
-{
-  "email": "cris@gmail.com",
-  "password": "User123"
-}
-
-### Fetch Role
-GET http://192.168.1.22:5000/api/auth/role/Grkc27sfu3Z4HezpiaEgTkn0A4A3
+### Get logs by date
+GET http://192.168.1.22:5000/api/logs/2026-05-08
