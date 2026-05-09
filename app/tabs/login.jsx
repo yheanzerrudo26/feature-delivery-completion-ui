@@ -1,39 +1,28 @@
-import { addLog } from "@/backend/services/log.service";
-import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/backend/firebase"; 
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth } from "@/backend/firebase";
+import { addLog } from "@/backend/services/log.service";
 import { fetchUserRole } from "@/backend/services/auth.service";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const disabled = useMemo(
-    () => !email.trim() || !password.trim(),
-    [email, password]
-  );
+
+  const disabled = useMemo(() => !email.trim() || !password.trim(), [email, password]);
 
   const handleLogin = async () => {
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
+      await signOut(auth);
+
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
       const uid = userCredential.user.uid;
 
       const roleData = await fetchUserRole(uid);
-      const role = roleData.role || "user";
+      const role = roleData?.role || "user";
 
-      await addLog("login", "User logged in");
+      await addLog("LOGIN", "User logged in", { uid });
 
       if (role === "admin") {
         router.replace("/admin-tabs/admin-dashboard");
@@ -62,6 +51,8 @@ export default function LoginScreen() {
         case "auth/network-request-failed":
           message = "Network error. Check your internet connection.";
           break;
+        default:
+          message = e.message || message;
       }
 
       Alert.alert("Login Failed", message);
@@ -97,10 +88,7 @@ export default function LoginScreen() {
         />
 
         <Pressable
-          style={[
-            styles.primaryButton,
-            disabled && styles.primaryButtonDisabled,
-          ]}
+          style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}
           onPress={handleLogin}
           disabled={disabled}
         >
@@ -125,7 +113,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  card: { backgroundColor: "#F7F9FC", borderRadius: 24, padding: 24 },
+  card: {
+    backgroundColor: "#F7F9FC",
+    borderRadius: 24,
+    padding: 24,
+  },
   badge: {
     alignSelf: "flex-start",
     backgroundColor: "#F2EDDE",
@@ -136,7 +128,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     fontWeight: "700",
   },
-  title: { fontSize: 36, fontWeight: "700", color: "#1B2B50" },
+  title: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: "#1B2B50",
+  },
   subtitle: {
     marginTop: 8,
     marginBottom: 20,
@@ -144,7 +140,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
-  label: { color: "#33415E", marginBottom: 6, fontSize: 16 },
+  label: {
+    color: "#33415E",
+    marginBottom: 6,
+    fontSize: 16,
+  },
   input: {
     borderWidth: 1,
     borderColor: "#CBD5E3",
@@ -162,10 +162,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
-  primaryButtonDisabled: { opacity: 0.6 },
-  primaryButtonText: { color: "#fff", fontWeight: "700", fontSize: 18 },
-  row: { flexDirection: "row", justifyContent: "center", marginTop: 14 },
-  smallText: { color: "#4A5670", fontSize: 15 },
+  primaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 18,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  smallText: {
+    color: "#4A5670",
+    fontSize: 15,
+  },
   linkText: {
     color: "#173B70",
     textDecorationLine: "underline",

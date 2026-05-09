@@ -3,6 +3,7 @@ import { useAppTheme } from '@/context/app-theme-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,26 +15,45 @@ export default function UserProfileScreen() {
   const [authEmail, setAuthEmail] = useState('');
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-
+  const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      setUserData(null);
+      setAuthEmail('');
+      return;
+    }
     setAuthEmail(user.email || '');
 
     const ref = doc(db, 'users', user.uid);
 
-    const unsubscribe = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
+    const unsubscribeDoc = onSnapshot(
+      ref,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
 
-        setUserData({
-          ...data,
-          email: data.email || user.email,
-        });
+          setUserData({
+            ...data,
+            email: data.email || user.email,
+          });
+        } else {
+          setUserData({
+            email: user.email,
+            firstName: '',
+            lastName: '',
+            name: user.email,
+          });
+        }
+      },
+      (error) => {
+        console.log("Firestore error:", error);
       }
-    });
+    );
 
-    return () => unsubscribe();
-  }, []);
+    return () => unsubscribeDoc();
+  });
+
+  return () => unsubscribeAuth();
+}, []);
 
   const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
   const displayName = fullName || userData?.name || 'Client';

@@ -1,14 +1,20 @@
-### Add a log manually (optional test)
-POST http://192.168.1.22:5000/api/logs/add
+### Register
+POST http://localhost:5000/api/auth/register
 Content-Type: application/json
 
 {
-  "type": "test",
-  "message": "Manual log entry from VS Code"
+  "email": "test123@gmail.com",
+  "password": "User123",
+  "firstName": "Testing",
+  "lastName": "ONLY",
+  "role": "user"
 }
 
-### Get all logs
-GET http://192.168.1.22:5000/api/logs
+### Login
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
 
-### Get logs by date
-GET http://192.168.1.22:5000/api/logs/2026-05-08
+{
+  "email": "admin@mabuli.com",
+  "password": "Admin123"
+}

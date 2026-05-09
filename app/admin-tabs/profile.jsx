@@ -14,37 +14,49 @@ export default function ProfileScreen() {
   const [authEmail, setAuthEmail] = useState('');
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        setUserData(null);
-        setAuthEmail('');
-        return;
-      }
+  const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      setUserData(null);
+      setAuthEmail('');
+      return;
+    }
 
-      setAuthEmail(user.email || '');
+    setAuthEmail(user.email || '');
 
-      const ref = doc(db, 'users', user.uid);
+    const ref = doc(db, 'users', user.uid);
 
-      const unsubscribeDoc = onSnapshot(ref, (snap) => {
+    const unsubscribeDoc = onSnapshot(
+      ref,
+      (snap) => {
         if (snap.exists()) {
           const data = snap.data();
+
           setUserData({
             ...data,
             email: data.email || user.email,
           });
         } else {
-          // fallback if no Firestore doc
-          setUserData({ email: user.email });
+          setUserData({
+            email: user.email,
+            firstName: '',
+            lastName: '',
+            name: user.email,
+          });
         }
-      });
+      },
+      (error) => {
+        console.log("Firestore error:", error);
+      }
+    );
 
-      return () => unsubscribeDoc();
-    });
+    return () => unsubscribeDoc();
+  });
 
-    return () => unsubscribeAuth();
-  }, []);
+  return () => unsubscribeAuth();
+}, []);
 
-  const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
+  const fullName =
+    `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top']}>

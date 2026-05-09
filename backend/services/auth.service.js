@@ -1,7 +1,4 @@
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/backend/firebase";
-
-const API_URL = "http://192.168.1.22:5000/api/auth";
+const API_URL = "http://192.168.1.11:5000/api/auth";
 
 export const registerUser = async (email, password, firstName, lastName) => {
   const response = await fetch(`${API_URL}/register`, {
@@ -12,36 +9,38 @@ export const registerUser = async (email, password, firstName, lastName) => {
       password,
       firstName,
       lastName,
-      role: "user", 
+      role: "user",
     }),
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw error;
-  }
+  if (!response.ok) throw await response.json();
 
-  return await response.json();
+  return response.json();
 };
 
 export const loginUser = async (email, password) => {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const response = await fetch(`${API_URL}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) throw await response.json();
+
+  const data = await response.json();
+
+  // ✅ IMPORTANT: return clean structure
   return {
-    uid: userCredential.user.uid,
-    email: userCredential.user.email,
+    uid: data.uid,
+    email: data.email,
+    role: data.role,
   };
 };
 
 export const fetchUserRole = async (uid) => {
-  const response = await fetch(`${API_URL}/role/${uid}`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  });
+  const response = await fetch(`${API_URL}/role/${uid}`);
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw error;
-  }
+  if (!response.ok) throw await response.json();
 
-  return await response.json(); 
+  return response.json();
 };
