@@ -1,4 +1,4 @@
-const API_URL = "http://192.168.1.11:5000/api/auth";
+const API_URL = "https://runner-discourse-vitamins.ngrok-free.dev/api/auth";
 
 export const registerUser = async (email, password, firstName, lastName) => {
   const response = await fetch(`${API_URL}/register`, {
