@@ -1,29 +1,56 @@
-import { useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { fetchUserRole } from "@/lib/auth.service.js";
+import Constants from "expo-constants";
 import { router } from "expo-router";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { auth } from "@/backend/firebase";
-import { addLog } from "@/backend/services/log.service";
-import { fetchUserRole } from "@/backend/services/auth.service";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { auth } from "../../lib/firebase.js";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const disabled = useMemo(() => !email.trim() || !password.trim(), [email, password]);
+  const disabled = useMemo(
+    () => !email.trim() || !password.trim(),
+    [email, password],
+  );
 
   const handleLogin = async () => {
     try {
-      await signOut(auth);
+      const API_URL = Constants.expoConfig?.extra?.API_URL;
 
-      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      // ✅ LOGIN USER
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
+
       const uid = userCredential.user.uid;
 
+      // ✅ GET ROLE FROM BACKEND
       const roleData = await fetchUserRole(uid);
       const role = roleData?.role || "user";
 
-      await addLog("LOGIN", "User logged in", { uid });
+      // ✅ FIXED LOG FORMAT (MATCHS BACKEND)
+      await fetch(`${API_URL}/api/logs/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: uid,
+          action: "LOGIN",
+          message: "User logged in",
+        }),
+      });
 
+      // ✅ NAVIGATION BASED ON ROLE
       if (role === "admin") {
         router.replace("/admin-tabs/admin-dashboard");
       } else {
@@ -88,7 +115,10 @@ export default function LoginScreen() {
         />
 
         <Pressable
-          style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}
+          style={[
+            styles.primaryButton,
+            disabled && styles.primaryButtonDisabled,
+          ]}
           onPress={handleLogin}
           disabled={disabled}
         >

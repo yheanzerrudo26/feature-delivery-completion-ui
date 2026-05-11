@@ -1,12 +1,23 @@
-import { addLog } from "@/backend/services/log.service";
-import { auth, db } from "@/backend/firebase";
 import { useAppTheme } from "@/context/app-theme-context";
 import { router } from "expo-router";
-import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, updatePassword, } from "firebase/auth";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updateEmail,
+  updatePassword,
+} from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { auth, db } from "../../lib/firebase.js";
 
 export default function EditProfileScreen() {
   const { palette } = useAppTheme();
@@ -80,13 +91,25 @@ export default function EditProfileScreen() {
         { merge: true },
       );
 
-      await addLog("profileUpdate", "User updated profile");
+      const API_URL = "http://192.168.1.20:5000";
 
-      alert("Profile updated successfully!");
+      await fetch(`${API_URL}/api/logs/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          action: "PROFILE UPDATE",
+          message: "User updated profile",
+        }),
+      });
+
+      Alert.alert("", "Profile updated successfully!");
       router.back();
     } catch (error) {
       console.log(error);
-      alert(error.message || "Failed to update profile");
+      Alert.alert("", error.message || "Failed to update profile");
     }
   };
 

@@ -7,64 +7,101 @@ export default function AdminLogDetailsScreen() {
   const params = useLocalSearchParams();
   const { palette } = useAppTheme();
 
-  const date = params.date ?? 'Selected Date';
+  // 📅 Date label
+  const date = params.date ?? "Selected Date";
 
-  const items = params.items ? JSON.parse(params.items) : [];
+  // 📦 SAFE JSON PARSE (prevents crash)
+  let items = [];
+
+  try {
+    items = params.items ? JSON.parse(params.items) : [];
+  // eslint-disable-next-line no-unused-vars
+  } catch (e) {
+    items = [];
+  }
 
   return (
     <SafeAreaView
       style={[styles.screen, { backgroundColor: palette.background }]}
       edges={['top']}
     >
+      {/* HEADER */}
       <View style={[styles.header, { backgroundColor: palette.card }]}>
         <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
           ACTIVITY REVIEW
         </Text>
+
         <Text style={[styles.title, { color: palette.textPrimary }]}>
           {date}
         </Text>
       </View>
 
+      {/* LOG LIST */}
       <ScrollView
-        contentContainerStyle={[styles.list, { backgroundColor: palette.card }]}
+        contentContainerStyle={[
+          styles.list,
+          { backgroundColor: palette.card },
+        ]}
       >
-        {items.map((item, index) => {
-          const time = item.createdAt
-            ? new Date(item.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : '';
+        {items.length === 0 ? (
+          <Text style={{ textAlign: 'center', opacity: 0.6 }}>
+            No logs available
+          </Text>
+        ) : (
+          items.map((item, index) => {
+            const time = item.createdAt
+              ? new Date(item.createdAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '';
 
-          return (
-            <View
-              key={index}
-              style={[styles.activityItem, { backgroundColor: palette.softCard }]}
-            >
-              <Text style={[styles.activityText, { color: palette.textPrimary }]}>
-                {item.type.toUpperCase()} - {item.message}
-              </Text>
-
-              {}
-              {time !== '' && (
-                <Text style={{ fontSize: 12, opacity: 0.6 }}>
-                  {time}
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.activityItem,
+                  { backgroundColor: palette.softCard },
+                ]}
+              >
+                {/* LOG TEXT */}
+                <Text
+                  style={[
+                    styles.activityText,
+                    { color: palette.textPrimary },
+                  ]}
+                >
+                  {(item.type || '').toUpperCase()} - {item.message || ''}
                 </Text>
-              )}
-            </View>
-          );
-        })}
+
+                {/* TIME */}
+                {time ? (
+                  <Text style={styles.timeText}>{time}</Text>
+                ) : null}
+              </View>
+            );
+          })
+        )}
       </ScrollView>
 
-      <Pressable style={styles.backButton} onPress={() => router.replace('/admin-tabs/admin-view-logs')}>
+      {/* BACK BUTTON */}
+      <Pressable
+        style={styles.backButton}
+        onPress={() => router.replace('/admin-tabs/admin-view-logs')}
+      >
         <Text style={styles.backButtonText}>Back to Logs</Text>
       </Pressable>
     </SafeAreaView>
   );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 16, gap: 12 },
+  screen: {
+    flex: 1,
+    padding: 16,
+    gap: 12,
+  },
 
   header: {
     borderRadius: 20,
@@ -94,8 +131,14 @@ const styles = StyleSheet.create({
   },
 
   activityText: {
-    fontSize: 17,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+
+  timeText: {
+    fontSize: 12,
+    opacity: 0.6,
+    marginTop: 4,
   },
 
   backButton: {
@@ -111,4 +154,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
