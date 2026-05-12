@@ -1,8 +1,5 @@
 import { db, admin } from "../config/firebase.js";
 
-/**
- * ADD LOG
- */
 export const addLog = async (req, res) => {
   try {
     const { userId, action, message } = req.body;
@@ -34,9 +31,6 @@ export const addLog = async (req, res) => {
   }
 };
 
-/**
- * GET LOGS
- */
 export const getLogs = async (req, res) => {
   try {
     const snapshot = await db.collection("logs").get();

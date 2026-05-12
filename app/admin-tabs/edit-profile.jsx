@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "../../lib/firebase.js";
+import { API_URL } from "../../lib/config";
 
 export default function EditProfileScreen() {
   const { palette } = useAppTheme();
@@ -90,8 +91,6 @@ export default function EditProfileScreen() {
         },
         { merge: true },
       );
-
-      const API_URL = "http://192.168.1.20:5000";
 
       await fetch(`${API_URL}/api/logs/add`, {
         method: "POST",

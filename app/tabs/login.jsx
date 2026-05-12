@@ -1,5 +1,4 @@
 import { fetchUserRole } from "@/lib/auth.service.js";
-import Constants from "expo-constants";
 import { router } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useMemo, useState } from "react";
@@ -12,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { auth } from "../../lib/firebase.js";
+import { API_URL } from "../../lib/config";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -24,9 +24,6 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      const API_URL = Constants.expoConfig?.extra?.API_URL;
-
-      // ✅ LOGIN USER
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
@@ -35,11 +32,9 @@ export default function LoginScreen() {
 
       const uid = userCredential.user.uid;
 
-      // ✅ GET ROLE FROM BACKEND
       const roleData = await fetchUserRole(uid);
       const role = roleData?.role || "user";
 
-      // ✅ FIXED LOG FORMAT (MATCHS BACKEND)
       await fetch(`${API_URL}/api/logs/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,7 +45,6 @@ export default function LoginScreen() {
         }),
       });
 
-      // ✅ NAVIGATION BASED ON ROLE
       if (role === "admin") {
         router.replace("/admin-tabs/admin-dashboard");
       } else {
