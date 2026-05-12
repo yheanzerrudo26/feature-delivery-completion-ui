@@ -1,6 +1,5 @@
-import { fetchUserRole } from "@/lib/auth.service.js";
+import { loginUser, fetchUserRole } from "@/lib/auth.service.js"; // Import our new service
 import { router } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -9,74 +8,56 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator, // Added for better UX
 } from "react-native";
-import { auth } from "../../lib/firebase.js";
 import { API_URL } from "../../lib/config";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false); // New state
 
   const disabled = useMemo(
-    () => !email.trim() || !password.trim(),
-    [email, password],
+    () => !email.trim() || !password.trim() || loading,
+    [email, password, loading]
   );
 
   const handleLogin = async () => {
+    setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password,
-      );
+      // 1. Use the service for login
+      const user = await loginUser(email.trim(), password);
 
-      const uid = userCredential.user.uid;
-
-      const roleData = await fetchUserRole(uid);
+      // 2. Fetch role
+      const roleData = await fetchUserRole(user.uid);
       const role = roleData?.role || "user";
 
-      await fetch(`${API_URL}/api/logs/add`, {
+      // 3. Fire-and-forget logging (No 'await' so it's faster!)
+      fetch(`${API_URL}/api/logs/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: uid,
+          userId: user.uid,
           action: "LOGIN",
           message: "User logged in",
         }),
-      });
+      }).catch(err => console.error("Logging failed", err));
 
+      // 4. Navigate
       if (role === "admin") {
         router.replace("/admin-tabs/admin-dashboard");
       } else {
         router.replace("/user-tabs/user-dashboard");
       }
     } catch (e) {
+      // Friendly error handling
       let message = "Unable to sign in. Please try again.";
-
-      switch (e.code) {
-        case "auth/invalid-email":
-          message = "Please enter a valid email address.";
-          break;
-        case "auth/user-not-found":
-          message = "No account found with this email.";
-          break;
-        case "auth/wrong-password":
-          message = "Incorrect password. Please try again.";
-          break;
-        case "auth/invalid-credential":
-          message = "Invalid email or password.";
-          break;
-        case "auth/too-many-requests":
-          message = "Too many failed attempts. Please try again later.";
-          break;
-        case "auth/network-request-failed":
-          message = "Network error. Check your internet connection.";
-          break;
-        default:
-          message = e.message || message;
-      }
-
+      if (e.code === "auth/invalid-credential") message = "Invalid email or password.";
+      if (e.code === "auth/network-request-failed") message = "Network error. Check your connection.";
+      
       Alert.alert("Login Failed", message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,9 +66,7 @@ export default function LoginScreen() {
       <View style={styles.card}>
         <Text style={styles.badge}>Login</Text>
         <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>
-          Sign in to track leather service and progress updates.
-        </Text>
+        <Text style={styles.subtitle}>Sign in to track leather service and progress updates.</Text>
 
         <Text style={styles.label}>Email</Text>
         <TextInput
@@ -109,14 +88,15 @@ export default function LoginScreen() {
         />
 
         <Pressable
-          style={[
-            styles.primaryButton,
-            disabled && styles.primaryButtonDisabled,
-          ]}
+          style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}
           onPress={handleLogin}
           disabled={disabled}
         >
-          <Text style={styles.primaryButtonText}>Login</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.primaryButtonText}>Login</Text>
+          )}
         </Pressable>
 
         <View style={styles.row}>
