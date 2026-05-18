@@ -1,6 +1,5 @@
 import { db } from "../config/firebase.js";
 
-// GET user role
 export const getRoleByUid = async (req, res) => {
   try {
     const { uid } = req.params;
@@ -16,7 +15,6 @@ export const getRoleByUid = async (req, res) => {
   }
 };
 
-// POST new user record
 export const registerUserRecord = async (req, res) => {
   try {
     const { uid, email, firstName, lastName, role } = req.body;

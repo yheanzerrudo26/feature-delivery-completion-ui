@@ -1,13 +1,6 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View, } from "react-native";
 import { registerUser } from "../../lib/auth.service";
 
 export default function RegisterScreen() {

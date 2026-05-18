@@ -1,21 +1,9 @@
 import { useAppTheme } from "@/context/app-theme-context";
 import { router } from "expo-router";
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updateEmail,
-  updatePassword,
-} from "firebase/auth";
+import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, updatePassword, } from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "../../lib/firebase.js";
 import { API_URL } from "../../lib/config"; 

@@ -48,7 +48,6 @@ export default function AdminDashboardScreen() {
           <View>
             <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>ATELIER COMMAND CENTER</Text>
             <Text style={[styles.title, { color: palette.textPrimary }]}>Executive Dashboard</Text>
-            {/* Realtime date here */}
             <Text style={[styles.date, { color: palette.textSecondary }]}>{today}</Text>
           </View>
           <Text style={styles.badge}>Admin access only</Text>

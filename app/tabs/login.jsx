@@ -1,21 +1,13 @@
-import { loginUser, fetchUserRole } from "@/lib/auth.service.js"; // Import our new service
+import { loginUser, fetchUserRole } from "@/lib/auth.service.js";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  ActivityIndicator, // Added for better UX
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View, ActivityIndicator, } from "react-native";
 import { API_URL } from "../../lib/config";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false); // New state
+  const [loading, setLoading] = useState(false); 
 
   const disabled = useMemo(
     () => !email.trim() || !password.trim() || loading,
@@ -25,14 +17,11 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      // 1. Use the service for login
       const user = await loginUser(email.trim(), password);
 
-      // 2. Fetch role
       const roleData = await fetchUserRole(user.uid);
       const role = roleData?.role || "user";
 
-      // 3. Fire-and-forget logging (No 'await' so it's faster!)
       fetch(`${API_URL}/api/logs/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,14 +32,12 @@ export default function LoginScreen() {
         }),
       }).catch(err => console.error("Logging failed", err));
 
-      // 4. Navigate
       if (role === "admin") {
         router.replace("/admin-tabs/admin-dashboard");
       } else {
         router.replace("/user-tabs/user-dashboard");
       }
     } catch (e) {
-      // Friendly error handling
       let message = "Unable to sign in. Please try again.";
       if (e.code === "auth/invalid-credential") message = "Invalid email or password.";
       if (e.code === "auth/network-request-failed") message = "Network error. Check your connection.";

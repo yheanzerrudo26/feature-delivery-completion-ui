@@ -7,16 +7,13 @@ export default function AdminLogDetailsScreen() {
   const params = useLocalSearchParams();
   const { palette } = useAppTheme();
 
-  // 📅 Date label
   const date = params.date ?? "Selected Date";
 
-  // 📦 SAFE JSON PARSE (prevents crash)
   let items = [];
 
   try {
     items = params.items ? JSON.parse(params.items) : [];
-  // eslint-disable-next-line no-unused-vars
-  } catch (e) {
+  } catch (_e) {
     items = [];
   }
 
@@ -25,7 +22,6 @@ export default function AdminLogDetailsScreen() {
       style={[styles.screen, { backgroundColor: palette.background }]}
       edges={['top']}
     >
-      {/* HEADER */}
       <View style={[styles.header, { backgroundColor: palette.card }]}>
         <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
           ACTIVITY REVIEW
@@ -36,7 +32,6 @@ export default function AdminLogDetailsScreen() {
         </Text>
       </View>
 
-      {/* LOG LIST */}
       <ScrollView
         contentContainerStyle={[
           styles.list,
@@ -64,7 +59,6 @@ export default function AdminLogDetailsScreen() {
                   { backgroundColor: palette.softCard },
                 ]}
               >
-                {/* LOG TEXT */}
                 <Text
                   style={[
                     styles.activityText,
@@ -74,7 +68,6 @@ export default function AdminLogDetailsScreen() {
                   {(item.type || '').toUpperCase()} - {item.message || ''}
                 </Text>
 
-                {/* TIME */}
                 {time ? (
                   <Text style={styles.timeText}>{time}</Text>
                 ) : null}
@@ -84,7 +77,6 @@ export default function AdminLogDetailsScreen() {
         )}
       </ScrollView>
 
-      {/* BACK BUTTON */}
       <Pressable
         style={styles.backButton}
         onPress={() => router.replace('/admin-tabs/admin-view-logs')}
@@ -95,7 +87,6 @@ export default function AdminLogDetailsScreen() {
   );
 }
 
-/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
