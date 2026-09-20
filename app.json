@@ -8,11 +8,9 @@
     "scheme": "mabuli",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "extra": {
       "API_URL": "http://192.168.1.20:5000"
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -23,12 +21,10 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/logo.png"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -42,9 +38,12 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-image",
+      "expo-status-bar"
     ],
-
     "experiments": {
       "reactCompiler": true
     }
