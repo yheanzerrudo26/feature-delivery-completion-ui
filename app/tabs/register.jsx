@@ -22,7 +22,7 @@ export default function RegisterScreen() {
   }, []);
 
   const passwordRequirements = {
-    minLength: password.length >= 12,
+    minLength: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
@@ -82,7 +82,7 @@ export default function RegisterScreen() {
 
         case "auth/weak-password":
           message =
-            "Password should be at least 12 characters and meet all password requirements.";
+            "Password should be at least 8 characters and meet all password requirements.";
           break;
 
         case "auth/network-request-failed":
@@ -135,7 +135,7 @@ export default function RegisterScreen() {
                   passwordRequirements.minLength && styles.validText,
                 ]}
               >
-                At least 12 characters
+                At least 8 characters
               </Text>
             </View>
 
