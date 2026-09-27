@@ -29,6 +29,10 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/photos", photoRoutes);
 app.use("/api/workflow", workflowRoutes);
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+export default app;
