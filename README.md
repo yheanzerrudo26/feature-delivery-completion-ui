@@ -1,6 +1,9 @@
 # Mabuli-Leather-Works
 
-### start App
+### start App on terminal seperate
+```
+node server.js
+```
 ```
 npx expo start
 ```
