@@ -31,7 +31,7 @@ app.use("/api/workflow", workflowRoutes);
 
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`MABULI Backend running on port ${PORT}`);
   });
 }
 
