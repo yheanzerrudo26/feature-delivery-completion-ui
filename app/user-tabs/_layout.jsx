@@ -13,8 +13,10 @@ export default function UserTabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
+
           tabBarActiveTintColor: palette.accent,
           tabBarInactiveTintColor: palette.textSecondary,
+
           tabBarStyle: {
             backgroundColor: palette.card,
             borderTopWidth: 0,
@@ -22,41 +24,149 @@ export default function UserTabLayout() {
             paddingBottom: Math.max(10, insets.bottom),
             paddingTop: 8,
           },
-        }}>
+
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '500',
+          },
+        }}
+      >
+
+        {/* HOME */}
         <Tabs.Screen
           name="user-dashboard"
           options={{
             title: 'Home',
-            tabBarIcon: ({ color }) => <Ionicons name="grid" size={22} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="grid"
+                size={size || 22}
+                color={color}
+              />
+            ),
           }}
         />
+
+        {/* REQUEST */}
         <Tabs.Screen
           name="atelier-checklist"
           options={{
             title: 'Request',
-            tabBarIcon: ({ color }) => <Ionicons name="document-text" size={22} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="document-text"
+                size={size || 22}
+                color={color}
+              />
+            ),
           }}
         />
+
+        {/* TRACK */}
         <Tabs.Screen
           name="tracker"
           options={{
             title: 'Track',
-            tabBarIcon: ({ color }) => <Ionicons name="time" size={22} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="time"
+                size={size || 22}
+                color={color}
+              />
+            ),
           }}
         />
+
+        {/* PROFILE */}
         <Tabs.Screen
           name="profile"
           options={{
             title: 'Profile',
-            tabBarIcon: ({ color }) => <Ionicons name="person" size={22} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="person"
+                size={size || 22}
+                color={color}
+              />
+            ),
           }}
         />
-        <Tabs.Screen name="photo-documentation" options={{ href: null }} />
-        <Tabs.Screen name="payment-signoff" options={{ href: null }} />
-        <Tabs.Screen name="edit-profile" options={{ href: null }} />
-        <Tabs.Screen name="settings" options={{ href: null }} />
+
+        {/* CHATBOT */}
+        <Tabs.Screen
+          name="chatbot"
+          options={{
+            title: 'Chatbot',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="chatbubbles"
+                size={size || 22}
+                color={color}
+              />
+            ),
+          }}
+        />
+
+        {/* SERVICES */}
+        <Tabs.Screen
+          name="services"
+          options={{
+            title: 'Services',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="briefcase"
+                size={size || 22}
+                color={color}
+              />
+            ),
+          }}
+        />
+
+        {/* SERVICE DETAILS */}
+        <Tabs.Screen
+          name="service-details"
+          options={{
+            title: 'Service Details',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="information-circle"
+                size={size || 22}
+                color={color}
+              />
+            ),
+          }}
+        />
+
+        {/* HIDDEN ROUTES */}
+        <Tabs.Screen
+          name="photo-documentation"
+          options={{
+            href: null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="payment-signoff"
+          options={{
+            href: null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="edit-profile"
+          options={{
+            href: null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="settings"
+          options={{
+            href: null,
+          }}
+        />
+
       </Tabs>
     </UserRequestProvider>
   );
 }
-
