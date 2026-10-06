@@ -1,28 +1,38 @@
+import KeyboardAwareScreen from '@/components/KeyboardAwareScreen';
+import {
+  InfoBanner,
+  PrimaryButton,
+  RequestScreenHeader,
+  SectionCard,
+  StepProgress,
+} from '@/components/RequestUI';
 import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-const photoSlots = ['Front', 'Side', 'Heel', 'Sole', 'Damage detail'];
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function PhotoDocumentationScreen() {
   const { palette } = useAppTheme();
-  const { draft, completedPhotos, allPhotosUploaded, updatePhoto } = useUserRequest();
+  const {
+    draft,
+    photoSlots,
+    updatePhoto,
+    allPhotosPassed,
+    failedPhotos,
+    passedPhotos,
+  } = useUserRequest();
 
   const pickImage = async (label) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      return;
-    }
+    if (!permission.granted) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.75,
     });
 
     if (!result.canceled && result.assets?.[0]) {
@@ -31,348 +41,224 @@ export default function PhotoDocumentationScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.pageEyebrow, { color: palette.textSecondary }]}>SECTION 5 - PHOTO DOCUMENTATION</Text>
+    <KeyboardAwareScreen
+      style={{ backgroundColor: palette.background }}
+      contentContainerStyle={styles.container}
+      bottomPadding={140}
+    >
+      <RequestScreenHeader
+        title="Required Photos"
+        subtitle="Capture clear angles. AI checks clarity, framing, and lighting."
+      />
 
-        <View style={styles.header}>
-          <Pressable style={[styles.iconButton, { backgroundColor: palette.softCard }]} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color={palette.textPrimary} />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={[styles.title, { color: palette.textPrimary }]}>Atelier checklist</Text>
-            <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Step 5 of 6 - Photo documentation</Text>
-          </View>
-        </View>
+      <StepProgress activeIndex={1} />
 
-        <View style={styles.stepRail}>
-          {[0, 1, 2, 3, 4, 5].map((index) => (
-            <View
-              key={index}
+      <InfoBanner
+        tone="info"
+        text="All 5 photos must pass before you can continue to AI assessment."
+      />
+
+      <SectionCard>
+        {photoSlots.map((label) => {
+          const photo = draft.photos[label];
+          const hasAsset = Boolean(photo?.asset);
+          const passed = photo?.status === 'pass';
+          const failed = photo?.status === 'fail';
+
+          return (
+            <Pressable
+              key={label}
+              onPress={() => pickImage(label)}
               style={[
-                styles.stepLine,
-                index < 4 ? styles.stepLineDone : null,
-                index === 4 ? styles.stepLineCurrent : null,
+                styles.photoRow,
+                {
+                  backgroundColor: palette.softCard,
+                  borderColor: failed
+                    ? '#F0B4B4'
+                    : passed
+                      ? '#A8DFC0'
+                      : palette.textSecondary + '25',
+                },
               ]}
-            />
-          ))}
-        </View>
+            >
+              <View style={styles.thumbWrap}>
+                {hasAsset ? (
+                  <Image
+                    source={{ uri: photo.asset.uri }}
+                    style={styles.thumb}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name="camera-outline"
+                    size={22}
+                    color={palette.textSecondary}
+                  />
+                )}
+              </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.softCard }]}>
-          <Text style={[styles.helperText, { color: palette.textPrimary }]}>
-            All 5 angles are required to establish the forensic baseline. Submission is locked until all
-            are uploaded.
-          </Text>
-
-          <View style={styles.grid}>
-            {photoSlots.map((label) => {
-              const asset = draft.photos[label];
-              const complete = Boolean(asset);
-
-              return (
-                <Pressable
-                  key={label}
-                  style={[
-                    styles.photoTile,
-                    complete
-                      ? styles.photoTileComplete
-                      : { borderColor: palette.textSecondary + '60', backgroundColor: palette.softCard },
-                  ]}
-                  onPress={() => pickImage(label)}>
-                  {asset ? (
-                    <Image source={{ uri: asset.uri }} style={styles.photoPreview} contentFit="cover" />
-                  ) : (
-                    <Ionicons name="camera-outline" size={20} color={palette.textSecondary} />
-                  )}
-                  <Text
-                    style={[
-                      styles.photoLabel,
-                      complete ? styles.photoLabelComplete : { color: palette.textSecondary },
-                    ]}>
+              <View style={styles.photoMeta}>
+                <View style={styles.photoTitleRow}>
+                  <Text style={[styles.photoLabel, { color: palette.textPrimary }]}>
                     {label}
                   </Text>
-                  <Text
-                    style={[
-                      styles.photoHint,
-                      complete ? styles.photoHintComplete : { color: palette.textSecondary },
-                    ]}>
-                    {complete ? 'Added' : 'Tap to upload'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                  {passed ? (
+                    <View style={[styles.badge, styles.badgePass]}>
+                      <Text style={styles.badgePassText}>Passed</Text>
+                    </View>
+                  ) : null}
+                  {failed ? (
+                    <View style={[styles.badge, styles.badgeFail]}>
+                      <Text style={styles.badgeFailText}>Recapture</Text>
+                    </View>
+                  ) : null}
+                  {!hasAsset ? (
+                    <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
+                      Tap to upload
+                    </Text>
+                  ) : null}
+                </View>
 
-          <View style={[styles.counterPill, { backgroundColor: palette.softCard }]}>
-            <Text style={[styles.counterText, { color: palette.textPrimary }]}>
-              {photoSlots.length - completedPhotos} photos remaining
-              {completedPhotos < photoSlots.length ? ' - complete all 5 angles' : ' - all angles uploaded'}
-            </Text>
-          </View>
+                {hasAsset ? (
+                  <View style={styles.checkRow}>
+                    <QualityChip label="Clarity" ok={photo.clarity === 'ok'} />
+                    <QualityChip label="Framing" ok={photo.framing === 'ok'} />
+                    <QualityChip label="Lighting" ok={photo.lighting === 'ok'} />
+                  </View>
+                ) : null}
 
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionDot, { backgroundColor: allPhotosUploaded ? '#14A572' : '#2E8BFF' }]} />
-            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Verified handshake preview</Text>
-          </View>
+                {failed && photo.message ? (
+                  <Text style={styles.failMessage}>{photo.message}</Text>
+                ) : null}
+              </View>
 
-          <Text style={[styles.handshakeText, { color: palette.textSecondary }]}>
-            {allPhotosUploaded
-              ? 'Photo requirement complete. The verified handshake preview is now active for intake confirmation.'
-              : 'Upload all mandatory angles to unlock the verified handshake preview.'}
-          </Text>
+              <Ionicons
+                name={failed ? 'refresh' : 'chevron-forward'}
+                size={18}
+                color={palette.textSecondary}
+              />
+            </Pressable>
+          );
+        })}
+      </SectionCard>
 
-          <View style={styles.previewWrap}>
-            {[
-              `Photos complete: ${completedPhotos}/5`,
-              `Brand: ${draft.general.brandModel || 'Pending details'}`,
-              `Service: ${draft.serviceProtocol}`,
-              allPhotosUploaded ? 'Handshake ready' : 'Handshake locked',
-            ].map((item, index) => (
-              <Text
-                key={item}
-                style={[
-                  styles.previewPill,
-                  index === 3 ? styles.previewPillHighlight : { color: '#403C36', backgroundColor: '#F3EFE8' },
-                ]}>
-                {item}
-              </Text>
-            ))}
-          </View>
+      <PrimaryButton
+        label={
+          allPhotosPassed
+            ? 'Next Step'
+            : failedPhotos > 0
+              ? 'Next Step — Locked'
+              : 'Next Step — Locked'
+        }
+        icon={allPhotosPassed ? 'arrow-forward' : 'lock-closed'}
+        disabled={!allPhotosPassed}
+        onPress={() => router.push('/user-tabs/ai-assessment')}
+      />
 
-          <Pressable
-            style={[
-              styles.lockedButton,
-              allPhotosUploaded ? styles.lockedButtonActive : { backgroundColor: palette.textSecondary + '40' },
-            ]}
-            disabled={!allPhotosUploaded}
-            onPress={() => router.push('/user-tabs/payment-signoff')}>
-            <Text
-              style={[
-                styles.lockedButtonText,
-                allPhotosUploaded ? styles.lockedButtonTextActive : { color: palette.textSecondary },
-              ]}>
-              {allPhotosUploaded
-                ? 'Continue to payment and sign-off'
-                : `Submit locked (${photoSlots.length - completedPhotos} photos pending)`}
-            </Text>
-          </Pressable>
-        </View>
+      {!allPhotosPassed ? (
+        <Text style={[styles.helper, { color: palette.textSecondary }]}>
+          {failedPhotos > 0
+            ? `${failedPhotos} photo${failedPhotos > 1 ? 's' : ''} need recapture. ${passedPhotos} passed.`
+            : 'Upload all 5 required angles to continue.'}
+        </Text>
+      ) : null}
+    </KeyboardAwareScreen>
+  );
+}
 
-        <View style={[styles.helperCard, { backgroundColor: palette.softCard, borderColor: palette.textSecondary + '30' }]}>
-          <Ionicons name="information-circle-outline" size={18} color={palette.accent} />
-          <Text style={[styles.helperCardText, { color: palette.textSecondary }]}>
-            Add clear photos for front, side, heel, sole, and damage detail. Tap any tile again if you want to
-            replace an image.
-          </Text>
-        </View>
-
-        <Pressable
-          style={[
-            styles.primaryButton,
-            { backgroundColor: palette.softCard, borderColor: palette.textSecondary + '60' },
-            !allPhotosUploaded ? styles.primaryButtonDisabled : null,
-          ]}
-          disabled={!allPhotosUploaded}
-          onPress={() => router.push('/user-tabs/payment-signoff')}>
-          <Text style={[styles.primaryButtonText, { color: palette.textPrimary }]}>
-            Continue to payment and sign-off
-          </Text>
-          <Ionicons name="arrow-forward" size={16} color={palette.textPrimary} />
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+function QualityChip({ label, ok }) {
+  return (
+    <Text style={[styles.qualityChip, ok ? styles.qualityOk : styles.qualityFail]}>
+      {ok ? '✓' : '✗'} {label}
+    </Text>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
   container: {
     paddingHorizontal: 16,
-    paddingBottom: 28,
-    gap: 12,
-  },
-  pageEyebrow: {
-    textAlign: 'center',
-    letterSpacing: 2,
-    fontSize: 11,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  iconButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 14,
-  },
-  stepRail: {
-    flexDirection: 'row',
-    gap: 6,
-    alignSelf: 'flex-end',
-  },
-  stepLine: {
-    width: 18,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: '#555149',
-  },
-  stepLineDone: {
-    backgroundColor: '#14A572',
-  },
-  stepLineCurrent: {
-    backgroundColor: '#2E8BFF',
-  },
-  sectionCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 14,
+    paddingTop: 8,
     gap: 14,
   },
-  helperText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  grid: {
+  photoRow: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 10,
   },
-  photoTile: {
-    width: '31.5%',
-    minHeight: 128,
+  thumbWrap: {
+    width: 56,
+    height: 56,
     borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
     overflow: 'hidden',
   },
-  photoTileComplete: {
-    borderStyle: 'solid',
-    borderColor: '#B8D86B',
-    backgroundColor: '#E8F5CC',
+  thumb: {
+    width: '100%',
+    height: '100%',
+  },
+  photoMeta: {
+    flex: 1,
+    gap: 4,
+  },
+  photoTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   photoLabel: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  photoHint: {
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  photoLabelComplete: {
-    color: '#46671D',
-    fontWeight: '600',
-  },
-  photoHintComplete: {
-    color: '#46671D',
-  },
-  photoPreview: {
-    width: '100%',
-    height: 64,
-    borderRadius: 8,
-  },
-  counterPill: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  counterText: {
-    fontSize: 13,
-  },
-  lockedButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  lockedButtonActive: {
-    backgroundColor: '#DCEBFB',
-  },
-  lockedButtonText: {
     fontSize: 15,
     fontWeight: '700',
   },
-  lockedButtonTextActive: {
-    color: '#16407A',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionDot: {
-    width: 8,
-    height: 8,
+  badge: {
     borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  badgePass: {
+    backgroundColor: '#DDF9EC',
   },
-  handshakeText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  previewWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  previewPill: {
-    borderRadius: 999,
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 12,
-  },
-  previewPillHighlight: {
-    backgroundColor: '#D7E9FF',
-    color: '#1E58A6',
-  },
-  helperCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  helperCardText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  primaryButton: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.5,
-  },
-  primaryButtonText: {
-    fontSize: 16,
+  badgePassText: {
+    color: '#157651',
+    fontSize: 11,
     fontWeight: '700',
   },
+  badgeFail: {
+    backgroundColor: '#FDECEC',
+  },
+  badgeFailText: {
+    color: '#B42318',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  checkRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  qualityChip: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  qualityOk: {
+    color: '#157651',
+  },
+  qualityFail: {
+    color: '#B42318',
+  },
+  failMessage: {
+    color: '#B42318',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  helper: {
+    textAlign: 'center',
+    fontSize: 13,
+    marginTop: -4,
+  },
 });
-

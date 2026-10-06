@@ -1,12 +1,17 @@
+import KeyboardAwareScreen from "@/components/KeyboardAwareScreen";
 import { useAppTheme } from "@/context/app-theme-context";
 import { router } from "expo-router";
-import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, updatePassword, } from "firebase/auth";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updateEmail,
+  updatePassword,
+} from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View, } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { auth, db } from "../../lib/firebase.js";
-import { API_URL } from "../../lib/config"; 
+import { API_URL } from "../../lib/config";
 
 export default function EditProfileScreen() {
   const { palette } = useAppTheme();
@@ -78,7 +83,6 @@ export default function EditProfileScreen() {
         { merge: true },
       );
 
-
       await fetch(`${API_URL}/api/logs/add`, {
         method: "POST",
         headers: {
@@ -100,10 +104,18 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.screen, { backgroundColor: palette.background }]}
-      edges={["top"]}
+    <KeyboardAwareScreen
+      style={{ backgroundColor: palette.background }}
+      contentContainerStyle={styles.container}
+      bottomPadding={140}
     >
+      <Pressable
+        onPress={() => router.back()}
+        style={[styles.backButton, { backgroundColor: palette.softCard }]}
+      >
+        <Text style={[styles.backText, { color: palette.textPrimary }]}>Back</Text>
+      </Pressable>
+
       <Text style={[styles.title, { color: palette.textPrimary }]}>
         Edit Profile
       </Text>
@@ -119,6 +131,8 @@ export default function EditProfileScreen() {
           ]}
           value={firstName}
           onChangeText={setFirstName}
+          placeholder="First name"
+          placeholderTextColor={palette.textSecondary}
         />
 
         <Text style={[styles.label, { color: palette.textSecondary }]}>
@@ -131,6 +145,24 @@ export default function EditProfileScreen() {
           ]}
           value={lastName}
           onChangeText={setLastName}
+          placeholder="Last name"
+          placeholderTextColor={palette.textSecondary}
+        />
+
+        <Text style={[styles.label, { color: palette.textSecondary }]}>
+          Email
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            { backgroundColor: palette.softCard, color: palette.textPrimary },
+          ]}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholder="Email"
+          placeholderTextColor={palette.textSecondary}
         />
 
         <Text style={[styles.label, { color: palette.textSecondary }]}>
@@ -144,6 +176,8 @@ export default function EditProfileScreen() {
           value={currentPassword}
           onChangeText={setCurrentPassword}
           secureTextEntry
+          placeholder="Required to change email or password"
+          placeholderTextColor={palette.textSecondary}
         />
 
         <Text style={[styles.label, { color: palette.textSecondary }]}>
@@ -157,21 +191,36 @@ export default function EditProfileScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          placeholder="Leave blank to keep current password"
+          placeholderTextColor={palette.textSecondary}
         />
 
         <Pressable style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>Save changes</Text>
         </Pressable>
       </View>
-    </SafeAreaView>
+    </KeyboardAwareScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 16, gap: 12 },
-  title: { fontSize: 32, fontWeight: "700" },
+  container: {
+    padding: 16,
+    gap: 12,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  backText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  title: { fontSize: 28, fontWeight: "700" },
   card: { borderRadius: 20, padding: 16 },
-  label: { fontSize: 15, marginBottom: 6, marginTop: 8 },
+  label: { fontSize: 14, marginBottom: 6, marginTop: 8 },
   input: {
     borderRadius: 12,
     paddingHorizontal: 12,

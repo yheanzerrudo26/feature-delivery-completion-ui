@@ -1,149 +1,257 @@
+import {
+  PrimaryButton,
+  RequestScreenHeader,
+  SectionCard,
+} from '@/components/RequestUI';
 import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const STAGE_ROUTES = {
+  pending_review: '/user-tabs/request-submitted',
+  declined: '/user-tabs/request-declined',
+  accepted: '/user-tabs/request-accepted',
+  payment_directions: '/user-tabs/payment-directions',
+  payment: '/user-tabs/gcash-payment',
+  awaiting_delivery: '/user-tabs/delivery-confirmation',
+  ready_for_pickup: '/user-tabs/ready-for-pickup',
+  return_delivery: '/user-tabs/return-delivery',
+  feedback: '/user-tabs/final-feedback',
+  in_progress: null,
+  complete: null,
+};
+
+const STAGE_LABELS = {
+  pending_review: 'Pending review',
+  declined: 'Declined',
+  accepted: 'Accepted',
+  payment_directions: 'Payment directions',
+  payment: 'Awaiting payment',
+  awaiting_delivery: 'Awaiting drop-off',
+  in_progress: 'In restoration',
+  ready_for_pickup: 'Ready for pickup',
+  return_delivery: 'Return delivery',
+  feedback: 'Confirm receipt',
+  complete: 'Complete',
+};
 
 export default function TrackerScreen() {
   const { palette } = useAppTheme();
   const { order } = useLocalSearchParams();
   const { requests, selectedOrder, setSelectedOrder } = useUserRequest();
   const activeOrder = typeof order === 'string' ? order : selectedOrder;
-  const request = requests.find((item) => item.order === activeOrder) || requests[0];
+  const request =
+    requests.find((item) => item.order === activeOrder) || requests[0];
 
   useEffect(() => {
-    if (request.order !== selectedOrder) {
+    if (request?.order && request.order !== selectedOrder) {
       setSelectedOrder(request.order);
     }
-  }, [request.order, selectedOrder, setSelectedOrder]);
+  }, [request?.order, selectedOrder, setSelectedOrder]);
+
+  if (!request) {
+    return (
+      <SafeAreaView
+        style={[styles.screen, { backgroundColor: palette.background }]}
+        edges={['top']}
+      >
+        <View style={styles.empty}>
+          <Text style={{ color: palette.textSecondary }}>No request selected.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const timeline = request.timeline || [];
+  const reportTags = request.reportTags || request.damageTags || [];
+  const notifications = request.notifications || [];
+  const continueRoute = STAGE_ROUTES[request.stage];
+  const progressLabel =
+    request.progress != null
+      ? `${Math.round(request.progress * 100)}%`
+      : STAGE_LABELS[request.stage] || request.badge;
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.pageEyebrow, { color: palette.textSecondary }]}>TRACK - REAL-TIME RESTORATION PROGRESS</Text>
+    <SafeAreaView
+      style={[styles.screen, { backgroundColor: palette.background }]}
+      edges={['top']}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        <RequestScreenHeader
+          title={`Request ${request.order}`}
+          subtitle={request.subtitle || request.item}
+          onBack={() => router.replace('/user-tabs/user-dashboard')}
+        />
 
-        <View style={styles.header}>
-          <Text style={[styles.orderTitle, { color: palette.textPrimary }]}>Order {request.order} - Tracking</Text>
-          <Text style={[styles.orderSubtitle, { color: palette.textSecondary }]}>{request.subtitle}</Text>
-        </View>
-
-        <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.softCard }]}>
+        <SectionCard>
           <View style={styles.progressHeader}>
-            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Overall progress</Text>
-            <Text style={styles.progressBadge}>
-              {request.progress ? `${Math.round(request.progress * 100)}%` : request.stage}
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+              Overall progress
             </Text>
+            <Text style={styles.progressBadge}>{progressLabel}</Text>
           </View>
           <View style={[styles.progressTrack, { backgroundColor: palette.softCard }]}>
-            <View style={[styles.progressFill, { width: request.progress ? `${request.progress * 100}%` : '100%' }]} />
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width:
+                    request.progress != null
+                      ? `${request.progress * 100}%`
+                      : request.stage === 'complete'
+                        ? '100%'
+                        : '20%',
+                },
+              ]}
+            />
           </View>
-        </View>
+          <Text style={{ color: palette.textSecondary, fontSize: 13 }}>
+            {request.detail}
+          </Text>
+        </SectionCard>
 
-        <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.softCard }]}>
-          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Restoration lifecycle</Text>
+        <SectionCard>
+          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+            Restoration lifecycle
+          </Text>
           <View style={styles.timeline}>
-            {request.timeline.map((item, index) => (
-              <View key={item.title} style={styles.timelineRow}>
+            {timeline.map((item, index) => (
+              <View key={`${item.title}-${index}`} style={styles.timelineRow}>
                 <View style={styles.timelineRail}>
                   <View
                     style={[
                       styles.timelineMarker,
                       item.done ? styles.timelineMarkerDone : null,
                       item.current ? styles.timelineMarkerCurrent : null,
-                    ]}>
-                    {item.done ? <Ionicons name="checkmark" size={12} color="#173B70" /> : null}
-                    {item.current ? <Ionicons name="arrow-forward" size={12} color="#173B70" /> : null}
+                    ]}
+                  >
+                    {item.done ? (
+                      <Ionicons name="checkmark" size={12} color="#173B70" />
+                    ) : null}
+                    {item.current ? (
+                      <Ionicons name="arrow-forward" size={12} color="#173B70" />
+                    ) : null}
                     {!item.done && !item.current ? (
                       <Text style={styles.timelineCount}>{index + 1}</Text>
                     ) : null}
                   </View>
-                  {index < request.timeline.length - 1 ? (
-                    <View style={[styles.timelineLine, { backgroundColor: palette.textSecondary + '60' }]} />
+                  {index < timeline.length - 1 ? (
+                    <View
+                      style={[
+                        styles.timelineLine,
+                        { backgroundColor: palette.textSecondary + '60' },
+                      ]}
+                    />
                   ) : null}
                 </View>
 
                 <View style={styles.timelineCopy}>
-                  <Text style={[styles.timelineTitle, { color: palette.textPrimary }]}>{item.title}</Text>
+                  <Text style={[styles.timelineTitle, { color: palette.textPrimary }]}>
+                    {item.title}
+                  </Text>
                   <Text
                     style={[
                       styles.timelineDate,
                       { color: palette.textSecondary },
                       item.current ? styles.timelineCurrentText : null,
-                    ]}>
+                    ]}
+                  >
                     {item.date || 'Pending'}
                   </Text>
                 </View>
               </View>
             ))}
           </View>
-        </View>
+        </SectionCard>
 
-        <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.softCard }]}>
-          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Pre-service condition report</Text>
-          <View style={styles.tagWrap}>
-            {request.reportTags.map((tag, index) => (
-              <Text
-                key={tag}
-                style={[
-                  styles.tag,
-                  index === 3 ? styles.tagHighlight : { color: '#403C36', backgroundColor: '#F3EFE8' },
-                ]}>
-                {tag}
-              </Text>
-            ))}
-          </View>
-        </View>
-
-        <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.softCard }]}>
-          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Notifications</Text>
-          {request.notifications.map((item) => (
-            <View key={item.title} style={[styles.notificationCard, { borderTopColor: palette.textSecondary + '30' }]}>
-              <View style={styles.notificationIcon}>
-                <Ionicons name="notifications-outline" size={18} color="#4FAE89" />
-              </View>
-              <View style={styles.notificationCopy}>
-                <Text style={[styles.notificationTitle, { color: palette.textPrimary }]}>{item.title}</Text>
-                <Text style={[styles.notificationDetail, { color: palette.textSecondary }]}>{item.detail}</Text>
-              </View>
+        {reportTags.length > 0 ? (
+          <SectionCard>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+              Condition / report tags
+            </Text>
+            <View style={styles.tagWrap}>
+              {reportTags.map((tag) => (
+                <Text key={tag} style={styles.tag}>
+                  {tag}
+                </Text>
+              ))}
             </View>
-          ))}
-        </View>
+          </SectionCard>
+        ) : null}
+
+        {notifications.length > 0 ? (
+          <SectionCard>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+              Notifications
+            </Text>
+            {notifications.map((item) => (
+              <View
+                key={item.title}
+                style={[
+                  styles.notificationCard,
+                  { borderTopColor: palette.textSecondary + '30' },
+                ]}
+              >
+                <View style={styles.notificationIcon}>
+                  <Ionicons name="notifications-outline" size={18} color="#4FAE89" />
+                </View>
+                <View style={styles.notificationCopy}>
+                  <Text
+                    style={[styles.notificationTitle, { color: palette.textPrimary }]}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.notificationDetail,
+                      { color: palette.textSecondary },
+                    ]}
+                  >
+                    {item.detail}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </SectionCard>
+        ) : null}
+
+        {continueRoute ? (
+          <PrimaryButton
+            label="Continue current step"
+            icon="arrow-forward"
+            onPress={() =>
+              router.push({
+                pathname: continueRoute,
+                params: { order: request.order },
+              })
+            }
+          />
+        ) : null}
+
+        <PrimaryButton
+          label="Ask chatbot about this request"
+          variant="secondary"
+          icon="chatbubbles-outline"
+          onPress={() => router.push('/user-tabs/chatbot')}
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
+  screen: { flex: 1 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: {
     paddingHorizontal: 16,
-    paddingBottom: 28,
-    gap: 12,
-  },
-  pageEyebrow: {
-    textAlign: 'center',
-    letterSpacing: 2,
-    fontSize: 11,
-  },
-  header: {
-    gap: 4,
-    paddingBottom: 4,
-  },
-  orderTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  orderSubtitle: {
-    fontSize: 14,
-  },
-  sectionCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 14,
+    paddingBottom: 32,
     gap: 14,
   },
   progressHeader: {
@@ -152,8 +260,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
   progressBadge: {
     color: '#205186',
@@ -171,20 +279,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: {
-    width: '60%',
     height: '100%',
     backgroundColor: '#2E8BFF',
+    borderRadius: 999,
   },
-  timeline: {
-    gap: 4,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  timelineRail: {
-    alignItems: 'center',
-  },
+  timeline: { gap: 4 },
+  timelineRow: { flexDirection: 'row', gap: 12 },
+  timelineRail: { alignItems: 'center' },
   timelineMarker: {
     width: 22,
     height: 22,
@@ -219,8 +320,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   timelineTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   timelineDate: {
     fontSize: 13,
@@ -240,10 +341,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     fontSize: 12,
-  },
-  tagHighlight: {
-    backgroundColor: '#D7E9FF',
     color: '#1E58A6',
+    backgroundColor: '#D7E9FF',
+    fontWeight: '600',
   },
   notificationCard: {
     flexDirection: 'row',
@@ -265,10 +365,9 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   notificationDetail: {
     fontSize: 13,
   },
 });
-

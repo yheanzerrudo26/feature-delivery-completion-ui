@@ -1,70 +1,134 @@
 import { useAppTheme } from '@/context/app-theme-context';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  routeForAdminStage,
+  useAdminRequest,
+} from '@/context/admin-request-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const payments = [
-  { name: 'Aria Gomez', service: 'Repair & Conditioning', status: 'Paid', amount: '₱2,850' },
-  { name: 'Julian Tan', service: 'Cleaning & Polish', status: 'Unpaid', amount: '₱1,600' },
-  { name: 'Maya Li', service: 'Restoration', status: 'Paid', amount: '₱4,050' },
-];
+import { RequestScreenHeader } from '@/components/RequestUI';
 
 export default function AdminPaymentScreen() {
   const { palette } = useAppTheme();
+  const { requests, counts, setSelectedId } = useAdminRequest();
+
+  const paymentRows = requests.filter(
+    (item) =>
+      !['pending_review', 'declined'].includes(item.stage) ||
+      item.paymentStatus === 'Paid',
+  );
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: palette.background }]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: palette.card }]}>
-        <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>PAYMENT TRACKING</Text>
-        <Text style={[styles.title, { color: palette.textPrimary }]}>Service payments</Text>
-        <Text style={styles.badge}>2 paid</Text>
-      </View>
+    <SafeAreaView
+      style={[styles.screen, { backgroundColor: palette.background }]}
+      edges={['top']}
+    >
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <RequestScreenHeader
+          title="Service payments"
+          subtitle="Monitor GCash service-fee settlements. Delivery cost is paid to the courier separately."
+          showBack={false}
+        />
 
-      <View style={[styles.card, { backgroundColor: palette.card }]}>
-        {payments.map((item) => (
-          <View key={item.name} style={[styles.rowCard, { backgroundColor: palette.softCard }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.name, { color: palette.textPrimary }]}>{item.name}</Text>
-              <Text style={[styles.service, { color: palette.textSecondary }]}>{item.service}</Text>
-            </View>
-            <Text style={[styles.status, item.status === 'Paid' ? styles.paid : styles.unpaid]}>
-              {item.status}
+        <View style={styles.statsRow}>
+          <View style={[styles.stat, { backgroundColor: '#DDF9EC' }]}>
+            <Text style={{ color: '#157651', fontSize: 24, fontWeight: '700' }}>
+              {counts.paid}
             </Text>
-            <Text style={[styles.amount, { color: palette.textPrimary }]}>{item.amount}</Text>
+            <Text style={{ color: '#157651', fontWeight: '600' }}>Paid</Text>
           </View>
-        ))}
-      </View>
+          <View style={[styles.stat, { backgroundColor: '#FDECEC' }]}>
+            <Text style={{ color: '#B42318', fontSize: 24, fontWeight: '700' }}>
+              {counts.unpaid}
+            </Text>
+            <Text style={{ color: '#B42318', fontWeight: '600' }}>Unpaid</Text>
+          </View>
+        </View>
+
+        {paymentRows.map((request) => {
+          const paid = request.paymentStatus === 'Paid';
+          return (
+            <Pressable
+              key={request.id}
+              style={[styles.card, { backgroundColor: palette.card }]}
+              onPress={() => {
+                setSelectedId(request.id);
+                router.push(routeForAdminStage(request.stage, request.id));
+              }}
+            >
+              <View style={styles.rowTop}>
+                <Text style={[styles.id, { color: palette.textPrimary }]}>
+                  {request.id}
+                </Text>
+                <Text style={[styles.status, paid ? styles.paid : styles.unpaid]}>
+                  {request.paymentStatus}
+                </Text>
+              </View>
+              <Text style={[styles.name, { color: palette.textPrimary }]}>
+                {request.clientName}
+              </Text>
+              <Text style={{ color: palette.textSecondary }}>
+                {request.serviceProtocol}
+              </Text>
+              <View style={styles.rowBottom}>
+                <Text style={[styles.amount, { color: palette.textPrimary }]}>
+                  ₱{(request.fee || 0).toLocaleString()}
+                </Text>
+                <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
+                  {request.paymentRef || 'Waiting for GCash detection'}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={palette.textSecondary}
+                />
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 16, gap: 12 },
-  header: { borderRadius: 20, padding: 16 },
-  eyebrow: { letterSpacing: 2, fontSize: 12 },
-  title: { fontSize: 40, fontWeight: '700', marginTop: 6 },
-  badge: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#F2EDDE',
-    color: '#8A6510',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginTop: 6,
-    fontWeight: '700',
-  },
-  card: { borderRadius: 24, padding: 12, gap: 10 },
-  rowCard: {
-    borderRadius: 16,
+  screen: { flex: 1 },
+  container: { padding: 16, gap: 12, paddingBottom: 32 },
+  statsRow: { flexDirection: 'row', gap: 10 },
+  stat: {
+    flex: 1,
+    borderRadius: 14,
     padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    gap: 2,
   },
-  name: { fontSize: 23, fontWeight: '700' },
-  service: { fontSize: 17 },
-  status: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, overflow: 'hidden', fontWeight: '700' },
+  card: {
+    borderRadius: 18,
+    padding: 14,
+    gap: 4,
+  },
+  rowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  id: { fontSize: 15, fontWeight: '700' },
+  name: { fontSize: 18, fontWeight: '700' },
+  status: {
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontWeight: '700',
+    fontSize: 11,
+  },
   paid: { backgroundColor: '#CFE8DF', color: '#127855' },
   unpaid: { backgroundColor: '#F8DDE0', color: '#D64158' },
-  amount: { fontSize: 23, fontWeight: '700' },
+  amount: { fontSize: 20, fontWeight: '700' },
+  rowBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
 });
-

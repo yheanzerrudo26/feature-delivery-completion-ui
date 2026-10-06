@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
   },
-  title: { fontSize: 36, fontWeight: "700" },
+  title: { fontSize: 28, fontWeight: "700" },
   card: {
     borderRadius: 24,
     padding: 18,
@@ -160,9 +160,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 14,
   },
-  avatarText: { color: "#fff", fontSize: 40, fontWeight: "700" },
-  name: { fontSize: 36, fontWeight: "700" },
-  email: { fontSize: 22, marginTop: 4 },
+  avatarText: { color: "#fff", fontSize: 36, fontWeight: "700" },
+  name: { fontSize: 24, fontWeight: "700" },
+  email: { fontSize: 15, marginTop: 4 },
   settingsLabel: {
     alignSelf: "flex-start",
     marginTop: 20,
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  settingText: { fontSize: 27, fontWeight: "600" },
+  settingText: { fontSize: 16, fontWeight: "600" },
   logoutButton: {
     width: "100%",
     backgroundColor: "#D42A2A",
@@ -189,5 +189,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
-  logoutText: { color: "#fff", fontSize: 24, fontWeight: "700" },
+  logoutText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

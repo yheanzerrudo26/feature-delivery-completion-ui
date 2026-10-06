@@ -1,7 +1,20 @@
 import { loginUser, fetchUserRole } from "@/lib/auth.service.js";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View, ActivityIndicator, } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { API_URL } from "../../lib/config";
 
 export default function LoginScreen() {
@@ -75,105 +88,111 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-
-      <Modal
-        visible={showLoginErrorModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowLoginErrorModal(false)}
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          <Modal
+            visible={showLoginErrorModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowLoginErrorModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Invalid Login Details</Text>
+                <Text style={styles.modalMessage}>
+                  The email or password you entered is incorrect.
+                </Text>
+                <Text style={styles.modalSubMessage}>
+                  Please check your login details and try again.
+                </Text>
+                <Pressable
+                  style={styles.modalButton}
+                  onPress={() => setShowLoginErrorModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
 
-            <Text style={styles.modalTitle}>
-              Invalid Login Details
+          <View style={styles.card}>
+            <Text style={styles.badge}>Login</Text>
+            <Text style={styles.title}>Welcome back</Text>
+            <Text style={styles.subtitle}>
+              Sign in to track leather service and progress updates.
             </Text>
 
-            <Text style={styles.modalMessage}>
-              The email or password you entered is incorrect.
-            </Text>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor="#7A869C"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
 
-            <Text style={styles.modalSubMessage}>
-              Please check your login details and try again.
-            </Text>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor="#7A869C"
+              secureTextEntry
+            />
 
             <Pressable
-              style={styles.modalButton}
-              onPress={() => setShowLoginErrorModal(false)}
+              style={[
+                styles.primaryButton,
+                disabled && styles.primaryButtonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={disabled}
             >
-              <Text style={styles.modalButtonText}>
-                OK
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Login</Text>
+              )}
             </Pressable>
 
+            <View style={styles.row}>
+              <Text style={styles.smallText}>New user? </Text>
+              <Pressable onPress={() => router.push("/tabs/register")}>
+                <Text style={styles.linkText}>Create account</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </Modal>
-
-      <View style={styles.card}>
-        <Text style={styles.badge}>Login</Text>
-
-        <Text style={styles.title}>Welcome back</Text>
-
-        <Text style={styles.subtitle}>
-          Sign in to track leather service and progress updates.
-        </Text>
-
-        <Text style={styles.label}>Email</Text>
-
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        <Text style={styles.label}>Password</Text>
-
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Password"
-          secureTextEntry
-        />
-
-        <Pressable
-          style={[
-            styles.primaryButton,
-            disabled && styles.primaryButtonDisabled,
-          ]}
-          onPress={handleLogin}
-          disabled={disabled}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.primaryButtonText}>Login</Text>
-          )}
-        </Pressable>
-
-        <View style={styles.row}>
-          <Text style={styles.smallText}>New user? </Text>
-
-          <Pressable onPress={() => router.push("/tabs/register")}>
-            <Text style={styles.linkText}>Create account</Text>
-          </Pressable>
-        </View>
-      </View>
-    </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: "#E9EEF5",
+  },
+  flex: {
+    flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
+    paddingBottom: 48,
   },
 
   card: {
@@ -222,6 +241,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 14,
     backgroundColor: "#EEF3FA",
+    color: "#1B2B50",
   },
 
   primaryButton: {

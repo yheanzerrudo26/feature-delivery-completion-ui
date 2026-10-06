@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/app-theme-context';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const SERVICES = {
   essential: {
@@ -251,6 +251,7 @@ function getAssistantResponse(message) {
 export default function ChatbotScreen() {
   const { palette } = useAppTheme();
   const { width } = useWindowDimensions();
+  const listRef = useRef(null);
 
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([
@@ -263,6 +264,13 @@ export default function ChatbotScreen() {
   ]);
 
   const isSmallScreen = width < 380;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [messages]);
 
   const sendMessage = (messageText = input) => {
     const trimmed = messageText.trim();
@@ -440,17 +448,13 @@ export default function ChatbotScreen() {
         styles.screen,
         { backgroundColor: palette.background },
       ]}
-      edges={['top', 'bottom']}
+      edges={['top']}
     >
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : undefined
-        }
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
-        {/* HEADER */}
         <View
           style={[
             styles.header,
@@ -460,20 +464,6 @@ export default function ChatbotScreen() {
             },
           ]}
         >
-          <Pressable
-            onPress={() => router.back()}
-            style={[
-              styles.backButton,
-              { backgroundColor: palette.softCard },
-            ]}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={22}
-              color={palette.textPrimary}
-            />
-          </Pressable>
-
           <View
             style={[
               styles.headerIcon,
@@ -488,14 +478,14 @@ export default function ChatbotScreen() {
           </View>
 
           <View style={styles.headerText}>
-            <Text
-              style={[
-                styles.headerTitle,
-                { color: palette.textPrimary },
-              ]}
-            >
-              MABULI AI Assistant
-            </Text>
+              <Text
+                style={[
+                  styles.headerTitle,
+                  { color: palette.textPrimary },
+                ]}
+              >
+                Restoration Chat
+              </Text>
 
             <View style={styles.statusRow}>
               <View
@@ -517,12 +507,17 @@ export default function ChatbotScreen() {
           </View>
         </View>
 
-        {/* CHAT */}
         <FlatList
+          ref={listRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onContentSizeChange={() =>
+            listRef.current?.scrollToEnd({ animated: true })
+          }
           contentContainerStyle={[
             styles.chatContent,
             {
@@ -531,7 +526,6 @@ export default function ChatbotScreen() {
           ]}
         />
 
-        {/* QUICK QUESTIONS */}
         <View
           style={[
             styles.quickSection,
@@ -543,6 +537,7 @@ export default function ChatbotScreen() {
             data={QUICK_QUESTIONS}
             keyExtractor={(item) => item.label}
             showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.quickContent}
             renderItem={({ item }) => (
               <Pressable
@@ -565,7 +560,6 @@ export default function ChatbotScreen() {
           />
         </View>
 
-        {/* INPUT */}
         <View
           style={[
             styles.inputArea,
@@ -595,6 +589,11 @@ export default function ChatbotScreen() {
               ]}
               multiline
               maxLength={500}
+              onFocus={() => {
+                setTimeout(() => {
+                  listRef.current?.scrollToEnd({ animated: true });
+                }, 120);
+              }}
               onSubmitEditing={() => sendMessage()}
             />
 
@@ -642,14 +641,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   headerIcon: {
