@@ -1,3 +1,4 @@
+
 import KeyboardAwareScreen from '@/components/KeyboardAwareScreen';
 import {
   FieldLabel,
@@ -10,7 +11,15 @@ import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 const ALL_TAGS = [
   'Dry leather',
@@ -24,21 +33,43 @@ const ALL_TAGS = [
 
 export default function AssessmentReportScreen() {
   const { palette } = useAppTheme();
+
   const {
     draft,
     updateAssessmentField,
     toggleDamageTag,
     submitDraft,
   } = useUserRequest();
+
   const [editingFindings, setEditingFindings] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSend = () => {
-    const order = submitDraft();
-    router.replace({
-      pathname: '/user-tabs/request-submitted',
-      params: { order },
-    });
+  const handleSend = async () => {
+    if (isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+
+      // Wait until Firestore successfully saves the request.
+      const order = await submitDraft();
+
+      // Navigate only after a successful submission.
+      router.replace({
+        pathname: '/user-tabs/request-submitted',
+        params: { order },
+      });
+    } catch (error) {
+      console.error('Service request submission failed:', error);
+
+      Alert.alert(
+        'Submission failed',
+        error?.message ||
+          'Unable to submit your service request. Please check your internet connection and try again.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -58,6 +89,7 @@ export default function AssessmentReportScreen() {
         <Text style={[styles.metaText, { color: palette.textSecondary }]}>
           Draft report
         </Text>
+
         <View style={styles.confidenceBadge}>
           <Text style={styles.confidenceText}>
             AI · {draft.assessment.confidence}% confidence
@@ -70,20 +102,31 @@ export default function AssessmentReportScreen() {
           <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
             AI findings
           </Text>
-          <Pressable onPress={() => setEditingFindings((v) => !v)}>
+
+          <Pressable
+            onPress={() => setEditingFindings((v) => !v)}
+            disabled={isSubmitting}
+          >
             <Text style={[styles.editLink, { color: palette.accent }]}>
               {editingFindings ? 'Done' : 'Edit'}
             </Text>
           </Pressable>
         </View>
+
         {editingFindings ? (
           <TextInput
             multiline
             value={draft.assessment.findings}
-            onChangeText={(value) => updateAssessmentField('findings', value)}
+            editable={!isSubmitting}
+            onChangeText={(value) =>
+              updateAssessmentField('findings', value)
+            }
             style={[
               styles.textArea,
-              { backgroundColor: palette.softCard, color: palette.textPrimary },
+              {
+                backgroundColor: palette.softCard,
+                color: palette.textPrimary,
+              },
             ]}
           />
         ) : (
@@ -98,43 +141,55 @@ export default function AssessmentReportScreen() {
           <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
             Identified damage
           </Text>
-          <Pressable onPress={() => setEditingTags((v) => !v)}>
+
+          <Pressable
+            onPress={() => setEditingTags((v) => !v)}
+            disabled={isSubmitting}
+          >
             <Text style={[styles.editLink, { color: palette.accent }]}>
               {editingTags ? 'Done' : 'Edit'}
             </Text>
           </Pressable>
         </View>
+
         <View style={styles.tagRow}>
-          {(editingTags ? ALL_TAGS : draft.assessment.damageTags).map((tag) => {
-            const selected = draft.assessment.damageTags.includes(tag);
-            if (!editingTags && !selected) return null;
-            return (
-              <Pressable
-                key={tag}
-                disabled={!editingTags}
-                onPress={() => toggleDamageTag(tag)}
-                style={[
-                  styles.tag,
-                  selected
-                    ? { backgroundColor: '#E8F1FF', borderColor: '#95BEF0' }
-                    : {
-                        backgroundColor: palette.softCard,
-                        borderColor: palette.textSecondary + '30',
-                      },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: selected ? '#143D76' : palette.textSecondary,
-                    fontSize: 12,
-                    fontWeight: '600',
-                  }}
+          {(editingTags ? ALL_TAGS : draft.assessment.damageTags).map(
+            (tag) => {
+              const selected = draft.assessment.damageTags.includes(tag);
+
+              if (!editingTags && !selected) return null;
+
+              return (
+                <Pressable
+                  key={tag}
+                  disabled={!editingTags || isSubmitting}
+                  onPress={() => toggleDamageTag(tag)}
+                  style={[
+                    styles.tag,
+                    selected
+                      ? {
+                          backgroundColor: '#E8F1FF',
+                          borderColor: '#95BEF0',
+                        }
+                      : {
+                          backgroundColor: palette.softCard,
+                          borderColor: palette.textSecondary + '30',
+                        },
+                  ]}
                 >
-                  {tag}
-                </Text>
-              </Pressable>
-            );
-          })}
+                  <Text
+                    style={{
+                      color: selected ? '#143D76' : palette.textSecondary,
+                      fontSize: 12,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {tag}
+                  </Text>
+                </Pressable>
+              );
+            },
+          )}
         </View>
       </SectionCard>
 
@@ -142,14 +197,17 @@ export default function AssessmentReportScreen() {
         <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
           Suggested service protocol
         </Text>
+
         <Text style={[styles.protocolName, { color: palette.accent }]}>
           {draft.assessment.protocolTitle}
         </Text>
+
         {draft.assessment.protocolSteps.map((step, index) => (
           <View key={step} style={styles.protocolStep}>
             <Text style={styles.protocolIndex}>
               {String(index + 1).padStart(2, '0')}
             </Text>
+
             <Text style={[styles.bodyText, { color: palette.textPrimary }]}>
               {step}
             </Text>
@@ -159,15 +217,22 @@ export default function AssessmentReportScreen() {
 
       <SectionCard>
         <FieldLabel>Client notes</FieldLabel>
+
         <TextInput
           multiline
           value={draft.assessment.clientNotes}
-          onChangeText={(value) => updateAssessmentField('clientNotes', value)}
+          editable={!isSubmitting}
+          onChangeText={(value) =>
+            updateAssessmentField('clientNotes', value)
+          }
           placeholder="Add anything the artisan should know…"
           placeholderTextColor={palette.textSecondary}
           style={[
             styles.textArea,
-            { backgroundColor: palette.softCard, color: palette.textPrimary },
+            {
+              backgroundColor: palette.softCard,
+              color: palette.textPrimary,
+            },
           ]}
         />
       </SectionCard>
@@ -180,11 +245,22 @@ export default function AssessmentReportScreen() {
           setEditingTags(true);
         }}
       />
+
       <PrimaryButton
-        label="Send Service Request"
+        label={isSubmitting ? 'Submitting Request...' : 'Send Service Request'}
         icon="paper-plane"
         onPress={handleSend}
+        disabled={isSubmitting}
       />
+
+      {isSubmitting && (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator color={palette.accent} />
+          <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
+            Saving your service request...
+          </Text>
+        </View>
+      )}
     </KeyboardAwareScreen>
   );
 }
@@ -268,5 +344,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
     width: 24,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  loadingText: {
+    fontSize: 13,
   },
 });

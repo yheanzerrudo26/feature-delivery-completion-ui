@@ -1,15 +1,31 @@
+
 import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { onAuthStateChanged } from 'firebase/auth';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase.js';
 
 function routeForStage(stage, order) {
   const params = { order };
+
   switch (stage) {
     case 'pending_review':
       return { pathname: '/user-tabs/request-submitted', params };
@@ -34,11 +50,130 @@ function routeForStage(stage, order) {
   }
 }
 
+function mapFirestoreRequest(docSnap) {
+  const data = docSnap.data();
+  const summary = data.requestSummary || {};
+  const assessment = data.assessment || {};
+  const itemDetails = data.item || {};
+
+  const itemName =
+    summary.item ||
+    summary.subtitle ||
+    `${itemDetails.brandModel || 'Custom leather item'} - ${
+      itemDetails.color || 'Unspecified color'
+    }`;
+
+  const stage = data.status || summary.stage || 'pending_review';
+
+  const statusDisplay = {
+    pending_review: {
+      badge: 'Pending review',
+      badgeVariant: 'amber',
+      detail: 'Waiting for Admin / Artisan review',
+      progress: 0.25,
+    },
+    declined: {
+      badge: 'Declined',
+      badgeVariant: 'amber',
+      detail: 'Your request was declined',
+      progress: null,
+    },
+    accepted: {
+      badge: 'Accepted',
+      badgeVariant: 'mint',
+      detail: 'Your request has been accepted',
+      progress: 0.35,
+    },
+    payment_directions: {
+      badge: 'Payment directions',
+      badgeVariant: 'blue',
+      detail: 'Review the payment instructions',
+      progress: 0.4,
+    },
+    payment: {
+      badge: 'Payment',
+      badgeVariant: 'blue',
+      detail: 'Complete your payment',
+      progress: 0.45,
+    },
+    awaiting_delivery: {
+      badge: 'Awaiting delivery',
+      badgeVariant: 'blue',
+      detail: 'Confirm your item delivery',
+      progress: 0.55,
+    },
+    in_progress: {
+      badge: 'In restoration',
+      badgeVariant: 'blue',
+      detail: 'Your item is being restored',
+      progress: 0.65,
+    },
+    ready_for_pickup: {
+      badge: 'Ready for pickup',
+      badgeVariant: 'mint',
+      detail: 'Your item is ready for pickup',
+      progress: 0.8,
+    },
+    return_delivery: {
+      badge: 'Return delivery',
+      badgeVariant: 'blue',
+      detail: 'Your item is being returned',
+      progress: 0.9,
+    },
+    feedback: {
+      badge: 'Feedback',
+      badgeVariant: 'blue',
+      detail: 'Please provide feedback on your service',
+      progress: 0.95,
+    },
+    complete: {
+      badge: 'Complete',
+      badgeVariant: 'mint',
+      detail: 'Service completed',
+      progress: 1,
+    },
+  };
+
+  const display = statusDisplay[stage] || statusDisplay.pending_review;
+
+  return {
+    ...summary,
+    firestoreId: docSnap.id,
+    order: data.order || summary.order || docSnap.id,
+    item: itemName,
+    subtitle: itemName,
+    stage,
+    createdAt: data.createdAt || null,
+    badge: display.badge,
+    badgeVariant: display.badgeVariant,
+    detail: display.detail,
+    progress: display.progress,
+    serviceProtocol:
+      assessment.protocolTitle || summary.serviceProtocol || '',
+    fee: assessment.fee ?? summary.fee ?? 0,
+    clientName:
+      data.personal?.fullName || summary.clientName || 'Client',
+    findings: assessment.findings || summary.findings || '',
+    damageTags: assessment.damageTags || summary.damageTags || [],
+    protocolSteps: assessment.protocolSteps || summary.protocolSteps || [],
+    clientNotes: assessment.clientNotes || summary.clientNotes || '',
+    declineReason: data.declineReason || summary.declineReason || '',
+    notifications: data.notifications || summary.notifications || [],
+    timeline: data.timeline || summary.timeline || [],
+  };
+}
+
 export default function UserDashboardScreen() {
   const { palette } = useAppTheme();
-  const { requests, setSelectedOrder, updateRequestStage } = useUserRequest();
+  const { setSelectedOrder } = useUserRequest();
+
   const [today, setToday] = useState('');
   const [userData, setUserData] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [requestError, setRequestError] = useState('');
+  const [authReady, setAuthReady] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
     const updateDate = () => {
@@ -51,92 +186,147 @@ export default function UserDashboardScreen() {
         }),
       );
     };
+
     updateDate();
     const interval = setInterval(updateDate, 60 * 1000);
+
     return () => clearInterval(interval);
   }, []);
 
+  // Subscribe to authentication changes and the signed-in user's profile
+  // and requests. State updates occur in subscription callbacks.
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-    const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setUserData({ ...data, email: data.email || user.email });
+    let unsubscribeProfile = null;
+    let unsubscribeRequests = null;
+    let active = true;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (!active) return;
+
+      // Clean up listeners belonging to the previous account.
+      unsubscribeProfile?.();
+      unsubscribeRequests?.();
+      unsubscribeProfile = null;
+      unsubscribeRequests = null;
+
+      if (!user) {
+        setUserData(null);
+        setRequests([]);
+        setRequestError('Please log in to view your service requests.');
+        setLoadingRequests(false);
+        setSignedIn(false);
+        setAuthReady(true);
+        return;
       }
+
+      setSignedIn(true);
+      setAuthReady(true);
+      setLoadingRequests(true);
+      setRequestError('');
+
+      unsubscribeProfile = onSnapshot(
+        doc(db, 'users', user.uid),
+        (snapshot) => {
+          if (!active) return;
+
+          if (!snapshot.exists()) {
+            setUserData({
+              name:
+                user.displayName ||
+                user.email?.split('@')[0] ||
+                'Client',
+              email: user.email || '',
+            });
+            console.warn(
+              'No Firestore profile found for UID:',
+              user.uid,
+            );
+            return;
+          }
+
+          const data = snapshot.data();
+
+          setUserData({
+            ...data,
+            email: data.email || user.email || '',
+          });
+        },
+        (error) => {
+          if (!active) return;
+
+          console.error(
+            'Failed to load user profile:',
+            error.code,
+            error.message,
+          );
+        },
+      );
+
+      unsubscribeRequests = onSnapshot(
+        query(
+          collection(db, 'serviceRequests'),
+          where('userId', '==', user.uid),
+        ),
+        (snapshot) => {
+          if (!active) return;
+
+          const userRequests = snapshot.docs
+            .map(mapFirestoreRequest)
+            .sort((a, b) => {
+              const aTime = a.createdAt?.toMillis?.() || 0;
+              const bTime = b.createdAt?.toMillis?.() || 0;
+              return bTime - aTime;
+            });
+
+          setRequests(userRequests);
+          setLoadingRequests(false);
+          setRequestError('');
+        },
+        (error) => {
+          if (!active) return;
+
+          console.error(
+            'Failed to load service requests:',
+            error.code,
+            error.message,
+          );
+
+          setRequestError(
+            'Unable to load your service requests. Please check your connection and Firestore permissions.',
+          );
+          setLoadingRequests(false);
+        },
+      );
     });
-    return () => unsubscribe();
+
+    return () => {
+      active = false;
+      unsubscribeAuth();
+      unsubscribeProfile?.();
+      unsubscribeRequests?.();
+    };
   }, []);
 
-  const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
-  const displayName = fullName || userData?.name || 'Client';
+  const fullName =
+    `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
 
-  const current = requests.filter((request) => request.stage !== 'complete');
-  const previous = requests.filter((request) => request.stage === 'complete');
+  const displayName =
+    fullName ||
+    userData?.name ||
+    auth.currentUser?.displayName ||
+    auth.currentUser?.email?.split('@')[0] ||
+    'Client';
+
+  const current = requests.filter(
+    (request) => request.stage !== 'complete',
+  );
+  const previous = requests.filter(
+    (request) => request.stage === 'complete',
+  );
 
   const openRequest = (request) => {
     setSelectedOrder(request.order);
     router.push(routeForStage(request.stage, request.order));
-  };
-
-  // Demo helpers so you can preview accept / decline / pickup from the dashboard.
-  const demoAccept = (request) => {
-    updateRequestStage(request.order, {
-      stage: 'accepted',
-      badge: 'Accepted',
-      badgeVariant: 'mint',
-      detail: 'Continue to payment directions',
-      acceptedDate: new Date().toLocaleDateString(),
-      progress: 0.35,
-      notifications: [
-        {
-          title: 'Request accepted',
-          detail: 'Continue to payment and item tracking.',
-        },
-      ],
-      timeline: [
-        { title: 'Request submitted', date: 'Done', done: true },
-        { title: 'Admin / Artisan review', date: 'Accepted', done: true },
-        { title: 'Payment & delivery', date: 'Next', current: true },
-      ],
-    });
-    setSelectedOrder(request.order);
-    router.push({
-      pathname: '/user-tabs/request-accepted',
-      params: { order: request.order },
-    });
-  };
-
-  const demoDecline = (request) => {
-    updateRequestStage(request.order, {
-      stage: 'declined',
-      badge: 'Declined',
-      badgeVariant: 'amber',
-      detail: 'See artisan reason and resubmit',
-      progress: null,
-      declineReason:
-        'The damage-detail photo does not show the full loose seam. Please recapture a closer shot and resubmit.',
-    });
-    setSelectedOrder(request.order);
-    router.push({
-      pathname: '/user-tabs/request-declined',
-      params: { order: request.order },
-    });
-  };
-
-  const demoReadyPickup = (request) => {
-    updateRequestStage(request.order, {
-      stage: 'ready_for_pickup',
-      badge: 'Ready for pickup',
-      badgeVariant: 'amber',
-      detail: 'Review video evidence and confirm schedule',
-      progress: 0.8,
-    });
-    setSelectedOrder(request.order);
-    router.push({
-      pathname: '/user-tabs/ready-for-pickup',
-      params: { order: request.order },
-    });
   };
 
   return (
@@ -144,20 +334,30 @@ export default function UserDashboardScreen() {
       style={[styles.screen, { backgroundColor: palette.background }]}
       edges={['top']}
     >
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.headerRow, { backgroundColor: palette.card }]}>
           <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
             DASHBOARD
           </Text>
+
           <Text style={[styles.title, { color: palette.textPrimary }]}>
             Welcome back,
           </Text>
+
           <Text style={[styles.heroName, { color: palette.textPrimary }]}>
             {displayName}
           </Text>
-          <Text style={[styles.date, { color: palette.textSecondary }]}>{today}</Text>
+
+          <Text style={[styles.date, { color: palette.textSecondary }]}>
+            {today}
+          </Text>
+
           <Text style={[styles.helper, { color: palette.textSecondary }]}>
-            Track current and previous restoration services. Tap a request to continue its step.
+            Track current and previous restoration services. Tap a request to
+            continue its step.
           </Text>
         </View>
 
@@ -165,12 +365,32 @@ export default function UserDashboardScreen() {
           <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
             Current services
           </Text>
+
           <Text style={[styles.sectionCount, { color: palette.textSecondary }]}>
-            {current.length}
+            {!authReady || loadingRequests ? '—' : current.length}
           </Text>
         </View>
 
-        {current.length === 0 ? (
+        {!authReady || loadingRequests ? (
+          <View style={[styles.emptyCard, { backgroundColor: palette.card }]}>
+            <ActivityIndicator color={palette.accent} />
+            <Text style={{ color: palette.textSecondary, marginTop: 10 }}>
+              Loading your service requests...
+            </Text>
+          </View>
+        ) : !signedIn ? (
+          <View style={[styles.emptyCard, { backgroundColor: palette.card }]}>
+            <Text style={{ color: palette.textSecondary, lineHeight: 20 }}>
+              Please log in to view your service requests.
+            </Text>
+          </View>
+        ) : requestError ? (
+          <View style={[styles.emptyCard, { backgroundColor: palette.card }]}>
+            <Text style={{ color: palette.textSecondary, lineHeight: 20 }}>
+              {requestError}
+            </Text>
+          </View>
+        ) : current.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: palette.card }]}>
             <Text style={{ color: palette.textSecondary, lineHeight: 20 }}>
               No active requests. Start one from the Services tab.
@@ -178,97 +398,116 @@ export default function UserDashboardScreen() {
           </View>
         ) : (
           current.map((request) => (
-            <View key={request.order} style={[styles.requestCard, { backgroundColor: palette.card }]}>
-              <Pressable onPress={() => openRequest(request)}>
-                <View style={styles.requestHeader}>
-                  <Text style={[styles.requestTitle, { color: palette.textPrimary }]}>
-                    Request {request.order}
-                  </Text>
-                  <StatusBadge request={request} />
-                </View>
-                <Text style={[styles.requestItem, { color: palette.textSecondary }]}>
-                  {request.item}
-                </Text>
-                {request.progress != null ? (
-                  <View style={styles.progressSection}>
-                    <View
-                      style={[styles.progressTrack, { backgroundColor: palette.softCard }]}
-                    >
-                      <View
-                        style={[
-                          styles.progressFill,
-                          { width: `${request.progress * 100}%` },
-                        ]}
-                      />
-                    </View>
-                  </View>
-                ) : null}
-                <Text style={[styles.requestDetail, { color: palette.textSecondary }]}>
-                  {request.detail}
-                </Text>
-              </Pressable>
-
-              {request.stage === 'pending_review' ? (
-                <View style={styles.demoRow}>
-                  <Pressable
-                    style={[styles.demoBtn, { backgroundColor: '#DDF9EC' }]}
-                    onPress={() => demoAccept(request)}
-                  >
-                    <Text style={{ color: '#157651', fontWeight: '700', fontSize: 12 }}>
-                      Demo: Accept
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.demoBtn, { backgroundColor: '#FDECEC' }]}
-                    onPress={() => demoDecline(request)}
-                  >
-                    <Text style={{ color: '#B42318', fontWeight: '700', fontSize: 12 }}>
-                      Demo: Decline
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : null}
-
-              {request.stage === 'in_progress' ? (
-                <Pressable
-                  style={[styles.demoBtn, { backgroundColor: '#FFF1C9', marginTop: 8 }]}
-                  onPress={() => demoReadyPickup(request)}
+            <Pressable
+              key={request.firestoreId || request.order}
+              style={[
+                styles.requestCard,
+                { backgroundColor: palette.card },
+              ]}
+              onPress={() => openRequest(request)}
+            >
+              <View style={styles.requestHeader}>
+                <Text
+                  style={[
+                    styles.requestTitle,
+                    { color: palette.textPrimary },
+                  ]}
                 >
-                  <Text style={{ color: '#8A6510', fontWeight: '700', fontSize: 12 }}>
-                    Demo: Mark ready for pickup
-                  </Text>
-                </Pressable>
+                  Request {request.order}
+                </Text>
+
+                <StatusBadge request={request} />
+              </View>
+
+              <Text
+                style={[styles.requestItem, { color: palette.textSecondary }]}
+              >
+                {request.item}
+              </Text>
+
+              {request.progress != null ? (
+                <View style={styles.progressSection}>
+                  <View
+                    style={[
+                      styles.progressTrack,
+                      { backgroundColor: palette.softCard },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { width: `${request.progress * 100}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
               ) : null}
-            </View>
+
+              <Text
+                style={[
+                  styles.requestDetail,
+                  { color: palette.textSecondary },
+                ]}
+              >
+                {request.detail}
+              </Text>
+            </Pressable>
           ))
         )}
 
-        {previous.length > 0 ? (
+        {!loadingRequests && signedIn && !requestError && previous.length > 0 ? (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+              <Text
+                style={[styles.sectionTitle, { color: palette.textPrimary }]}
+              >
                 Previous services
               </Text>
-              <Text style={[styles.sectionCount, { color: palette.textSecondary }]}>
+
+              <Text
+                style={[
+                  styles.sectionCount,
+                  { color: palette.textSecondary },
+                ]}
+              >
                 {previous.length}
               </Text>
             </View>
+
             {previous.map((request) => (
               <Pressable
-                key={request.order}
-                style={[styles.requestCard, { backgroundColor: palette.card }]}
+                key={request.firestoreId || request.order}
+                style={[
+                  styles.requestCard,
+                  { backgroundColor: palette.card },
+                ]}
                 onPress={() => openRequest(request)}
               >
                 <View style={styles.requestHeader}>
-                  <Text style={[styles.requestTitle, { color: palette.textPrimary }]}>
+                  <Text
+                    style={[
+                      styles.requestTitle,
+                      { color: palette.textPrimary },
+                    ]}
+                  >
                     Request {request.order}
                   </Text>
+
                   <StatusBadge request={request} />
                 </View>
-                <Text style={[styles.requestItem, { color: palette.textSecondary }]}>
+
+                <Text
+                  style={[styles.requestItem, { color: palette.textSecondary }]}
+                >
                   {request.item}
                 </Text>
-                <Text style={[styles.requestDetail, { color: palette.textSecondary }]}>
+
+                <Text
+                  style={[
+                    styles.requestDetail,
+                    { color: palette.textSecondary },
+                  ]}
+                >
                   {request.detail}
                 </Text>
               </Pressable>
@@ -277,22 +516,39 @@ export default function UserDashboardScreen() {
         ) : null}
 
         <Pressable
-          style={[styles.primaryButton, { backgroundColor: palette.accent }]}
+          style={[
+            styles.primaryButton,
+            { backgroundColor: palette.accent },
+          ]}
           onPress={() => router.push('/user-tabs/atelier-checklist')}
         >
           <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.primaryButtonText}>New restoration request</Text>
+          <Text style={styles.primaryButtonText}>
+            New restoration request
+          </Text>
         </Pressable>
 
         <Pressable
           style={[
             styles.secondaryButton,
-            { backgroundColor: palette.card, borderColor: palette.softCard },
+            {
+              backgroundColor: palette.card,
+              borderColor: palette.softCard,
+            },
           ]}
           onPress={() => router.push('/user-tabs/chatbot')}
         >
-          <Ionicons name="chatbubbles-outline" size={18} color={palette.accent} />
-          <Text style={[styles.secondaryButtonText, { color: palette.textPrimary }]}>
+          <Ionicons
+            name="chatbubbles-outline"
+            size={18}
+            color={palette.accent}
+          />
+          <Text
+            style={[
+              styles.secondaryButtonText,
+              { color: palette.textPrimary },
+            ]}
+          >
             Open restoration chatbot
           </Text>
         </Pressable>
@@ -307,9 +563,15 @@ function StatusBadge({ request }) {
     amber: styles.badgeAmber,
     mint: styles.badgeMint,
   };
+
   return (
-    <Text style={[styles.statusBadge, styleMap[request.badgeVariant] || styles.badgeBlue]}>
-      {request.badge}
+    <Text
+      style={[
+        styles.statusBadge,
+        styleMap[request.badgeVariant] || styles.badgeBlue,
+      ]}
+    >
+      {request.badge || 'Pending review'}
     </Text>
   );
 }
@@ -330,7 +592,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: '700' },
   sectionCount: { fontSize: 13, fontWeight: '600' },
-  emptyCard: { borderRadius: 16, padding: 16 },
+  emptyCard: {
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
   requestCard: { borderRadius: 18, padding: 14, gap: 8 },
   requestHeader: {
     flexDirection: 'row',
@@ -359,13 +625,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2E8BFF',
   },
   requestDetail: { fontSize: 13 },
-  demoRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  demoBtn: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
   primaryButton: {
     marginTop: 4,
     borderRadius: 14,
@@ -375,7 +634,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  primaryButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  primaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   secondaryButton: {
     borderRadius: 14,
     borderWidth: 1,

@@ -1,14 +1,17 @@
 # Mabuli-Leather-Works
 
-### start App on terminal seperate
-```
+## Start app on terminal separately
+
+```bash
 node server.js
 ```
-```
+
+```bash
 npx expo start
 ```
 
-### if any error or missing try
-'''
+### If any error or missing dependency, try
+
+```bash
 npm install
-'''
+```

@@ -1,5 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useAppTheme } from "@/context/app-theme-context";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   Pressable,
   ScrollView,
@@ -7,93 +8,88 @@ import {
   Text,
   View,
   useWindowDimensions,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '@/context/app-theme-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SERVICES = [
   {
-    id: 'essential',
-    name: 'Essential Endurance',
-    price: '₱800',
-    icon: 'shield-checkmark-outline',
-    tagline: 'Essential care and conditioning',
+    id: "essential",
+    name: "Essential Endurance",
+    price: "₱800",
+    icon: "shield-checkmark-outline",
+    tagline: "Essential care and conditioning",
     description:
-      'A basic restoration service for leather pieces that need proper cleaning, conditioning, and basic finishing to maintain their overall condition.',
+      "A basic restoration service for leather pieces that need proper cleaning, conditioning, and basic finishing to maintain their overall condition.",
     suitableFor: [
-      'Light surface dirt',
-      'Dry or dull leather',
-      'Routine leather maintenance',
-      'Minor signs of wear',
+      "Light surface dirt",
+      "Dry or dull leather",
+      "Routine leather maintenance",
+      "Minor signs of wear",
+    ],
+    includes: ["Surface cleaning", "Leather conditioning", "Basic finishing"],
+  },
+  {
+    id: "foundation",
+    name: "The Foundation",
+    price: "₱1,800",
+    icon: "construct-outline",
+    tagline: "Deeper care for visible wear",
+    description:
+      "A deeper restoration service for leather pieces showing visible wear, surface damage, fading, or edge deterioration.",
+    suitableFor: [
+      "Visible scratches and scuffs",
+      "Surface wear",
+      "Color fading",
+      "Dry or tired-looking leather",
+      "Edge wear",
     ],
     includes: [
-      'Surface cleaning',
-      'Leather conditioning',
-      'Basic finishing',
+      "Deep cleaning",
+      "Leather conditioning",
+      "Color touch-up",
+      "Edge care",
     ],
   },
   {
-    id: 'foundation',
-    name: 'The Foundation',
-    price: '₱1,800',
-    icon: 'construct-outline',
-    tagline: 'Deeper care for visible wear',
+    id: "heritage",
+    name: "The Heritage Glass",
+    price: "₱3,500",
+    icon: "diamond-outline",
+    tagline: "Premium restoration and refinement",
     description:
-      'A deeper restoration service for leather pieces showing visible wear, surface damage, fading, or edge deterioration.',
+      "A premium restoration protocol for valuable leather pieces requiring a detailed assessment, deeper restoration, color refinement, and protective finishing.",
     suitableFor: [
-      'Visible scratches and scuffs',
-      'Surface wear',
-      'Color fading',
-      'Dry or tired-looking leather',
-      'Edge wear',
+      "Significant surface wear",
+      "Noticeable color deterioration",
+      "Premium or valuable leather pieces",
+      "Items requiring detailed refinement",
     ],
     includes: [
-      'Deep cleaning',
-      'Leather conditioning',
-      'Color touch-up',
-      'Edge care',
+      "Full assessment",
+      "Deep restoration",
+      "Color refinement",
+      "Protective finish",
     ],
   },
   {
-    id: 'heritage',
-    name: 'The Heritage Glass',
-    price: '₱3,500',
-    icon: 'diamond-outline',
-    tagline: 'Premium restoration and refinement',
+    id: "resurrection",
+    name: "The Resurrection Protocol",
+    price: "Quote Required",
+    icon: "sparkles-outline",
+    tagline: "Specialized restoration for complex cases",
     description:
-      'A premium restoration protocol for valuable leather pieces requiring a detailed assessment, deeper restoration, color refinement, and protective finishing.',
+      "A specialized restoration protocol for heavily damaged, vintage, or complex leather pieces that require a customized treatment plan.",
     suitableFor: [
-      'Significant surface wear',
-      'Noticeable color deterioration',
-      'Premium or valuable leather pieces',
-      'Items requiring detailed refinement',
+      "Heavy damage",
+      "Severe deterioration",
+      "Vintage leather pieces",
+      "Complex restoration cases",
+      "Cases requiring specialized treatment",
     ],
     includes: [
-      'Full assessment',
-      'Deep restoration',
-      'Color refinement',
-      'Protective finish',
-    ],
-  },
-  {
-    id: 'resurrection',
-    name: 'The Resurrection Protocol',
-    price: 'Quote Required',
-    icon: 'sparkles-outline',
-    tagline: 'Specialized restoration for complex cases',
-    description:
-      'A specialized restoration protocol for heavily damaged, vintage, or complex leather pieces that require a customized treatment plan.',
-    suitableFor: [
-      'Heavy damage',
-      'Severe deterioration',
-      'Vintage leather pieces',
-      'Complex restoration cases',
-      'Cases requiring specialized treatment',
-    ],
-    includes: [
-      'Detailed assessment',
-      'Custom treatment plan',
-      'Specialized restoration',
+      "Detailed assessment",
+      "Custom treatment plan",
+      "Specialized restoration",
     ],
   },
 ];
@@ -169,7 +165,7 @@ export default function ServiceDetailsScreen() {
 
   const askAI = () => {
     router.push({
-      pathname: '/user-tabs/chatbot',
+      pathname: "/user-tabs/chatbot",
       params: {
         service: selectedService.id,
       },
@@ -178,7 +174,7 @@ export default function ServiceDetailsScreen() {
 
   const startRequest = () => {
     router.push({
-      pathname: '/user-tabs/atelier-checklist',
+      pathname: "/user-tabs/atelier-checklist",
       params: {
         service: selectedService.id,
       },
@@ -193,7 +189,7 @@ export default function ServiceDetailsScreen() {
           backgroundColor: palette.background,
         },
       ]}
-      edges={['top']}
+      edges={["top"]}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -421,18 +417,14 @@ export default function ServiceDetailsScreen() {
                 },
               ]}
             >
-              What's included
+              What&apos;s included
             </Text>
           </View>
 
           <View style={styles.list}>
             {selectedService.includes.map((item) => (
               <View key={item} style={styles.includeCard}>
-                <Ionicons
-                  name="checkmark"
-                  size={18}
-                  color={palette.accent}
-                />
+                <Ionicons name="checkmark" size={18} color={palette.accent} />
 
                 <Text
                   style={[
@@ -484,9 +476,8 @@ export default function ServiceDetailsScreen() {
                 },
               ]}
             >
-              Your item will go through the MABULI Atelier
-              Checklist for condition documentation before
-              restoration begins.
+              Your item will go through the MABULI Atelier Checklist for
+              condition documentation before restoration begins.
             </Text>
           </View>
         </View>
@@ -529,21 +520,13 @@ export default function ServiceDetailsScreen() {
               },
             ]}
           >
-            <Ionicons
-              name="document-text-outline"
-              size={19}
-              color="#FFFFFF"
-            />
+            <Ionicons name="document-text-outline" size={19} color="#FFFFFF" />
 
             <Text style={styles.primaryButtonText}>
               Start Restoration Request
             </Text>
 
-            <Ionicons
-              name="arrow-forward"
-              size={19}
-              color="#FFFFFF"
-            />
+            <Ionicons name="arrow-forward" size={19} color="#FFFFFF" />
           </Pressable>
         </View>
       </ScrollView>
@@ -563,8 +546,8 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
 
@@ -576,26 +559,26 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   eyebrow: {
     fontSize: 10,
     letterSpacing: 2,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   headerTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     marginTop: 3,
   },
 
   heroCard: {
     borderRadius: 22,
     padding: 22,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 8,
   },
 
@@ -603,25 +586,25 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 5,
   },
 
   serviceName: {
     fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
   },
 
   tagline: {
     fontSize: 13,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   price: {
     fontSize: 19,
-    fontWeight: '700',
+    fontWeight: "700",
     marginTop: 4,
   },
 
@@ -632,14 +615,14 @@ const styles = StyleSheet.create({
   },
 
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 9,
   },
 
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   bodyText: {
@@ -652,8 +635,8 @@ const styles = StyleSheet.create({
   },
 
   listRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 9,
   },
 
@@ -664,16 +647,16 @@ const styles = StyleSheet.create({
   },
 
   includeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
 
   nextStepCard: {
     borderRadius: 18,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 12,
   },
 
@@ -684,7 +667,7 @@ const styles = StyleSheet.create({
 
   nextStepTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   nextStepText: {
@@ -700,48 +683,48 @@ const styles = StyleSheet.create({
   secondaryButton: {
     minHeight: 52,
     borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 9,
   },
 
   secondaryButtonText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   primaryButton: {
     minHeight: 54,
     borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 9,
   },
 
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   errorContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 30,
     gap: 12,
   },
 
   errorTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   errorText: {
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 20,
   },
 
@@ -750,13 +733,13 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 28,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   errorButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

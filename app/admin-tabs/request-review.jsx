@@ -20,12 +20,15 @@ export default function RequestReviewScreen() {
     requests.find((item) => item.stage === 'pending_review') ||
     requests[0];
 
-  const handleAccept = () => {
-    acceptRequest(request.id);
+  
+const handleAccept = async () => {
+  try {
+    await acceptRequest(request.id);
     setSelectedId(request.id);
+
     Alert.alert(
       'Request accepted',
-      'Client will be notified with transaction details and artisan contact.',
+      'The request status was saved. Client notification still needs to be connected.',
       [
         {
           text: 'OK',
@@ -33,7 +36,15 @@ export default function RequestReviewScreen() {
         },
       ],
     );
-  };
+  } catch (error) {
+    console.error('Failed to accept request:', error);
+
+    Alert.alert(
+      'Unable to accept request',
+      error.message || 'Please try again.',
+    );
+  }
+};
 
   return (
     <SafeAreaView

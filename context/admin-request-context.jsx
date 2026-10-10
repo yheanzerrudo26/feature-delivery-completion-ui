@@ -1,93 +1,159 @@
-import { createContext, useContext, useMemo, useState } from 'react';
 
-const initialRequests = [
-  {
-    id: '#039',
-    clientName: 'Mia Santos',
-    mobile: '+63 917 555 0192',
-    email: 'mia.santos@email.com',
-    submittedAt: 'Today · 9:14 AM',
-    stage: 'pending_review',
-    badge: 'Pending review',
-    badgeVariant: 'amber',
-    item: 'Coach leather satchel',
-    colorMaterial: 'Cognac brown · full-grain leather',
-    declaredIssue: 'Dry leather, edge wear, loose handle stitch',
-    returnMethod: 'Courier delivery',
-    serviceProtocol: 'Repair & Deep Conditioning',
-    fee: 2850,
-    photos: ['Front', 'Side', 'Back', 'Base', 'Damage detail'],
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  orderBy,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { db } from '../lib/firebase';
+
+const AdminRequestContext = createContext(undefined);
+
+function formatSubmittedAt(timestamp) {
+  if (!timestamp) return 'Recently submitted';
+
+  const date =
+    typeof timestamp.toDate === 'function'
+      ? timestamp.toDate()
+      : new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) return 'Recently submitted';
+
+  return date.toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function getPhotoLabels(photos) {
+  if (!photos) return [];
+
+  if (Array.isArray(photos)) {
+    return photos.map((photo) =>
+      typeof photo === 'string' ? photo : photo?.label || 'Photo',
+    );
+  }
+
+  return Object.entries(photos)
+    .filter(([, photo]) => Boolean(photo))
+    .map(([label]) => label);
+}
+
+function mapFirestoreRequest(documentSnapshot) {
+  const data = documentSnapshot.data();
+  const summary = data.requestSummary || {};
+  const personal = data.personal || {};
+  const itemData = data.item || {};
+  const assessment = data.assessment || {};
+  const delivery = data.delivery || {};
+
+  const order = data.order || summary.order || documentSnapshot.id;
+  const stage = data.status || summary.stage || 'pending_review';
+
+  const stageLabels = {
+    pending_review: ['Pending review', 'amber'],
+    accepted: ['Accepted', 'mint'],
+    declined: ['Declined', 'amber'],
+    payment_directions: ['Payment directions', 'blue'],
+    payment: ['Awaiting payment', 'amber'],
+    awaiting_delivery: ['Awaiting delivery', 'amber'],
+    in_progress: ['In restoration', 'blue'],
+    ready_for_pickup: ['Ready for pickup', 'mint'],
+    return_delivery: ['Return in transit', 'blue'],
+    feedback: ['Awaiting feedback', 'amber'],
+    complete: ['Complete', 'mint'],
+    reschedule_needed: ['Reschedule needed', 'amber'],
+    awaiting_pickup_response: ['Awaiting pickup response', 'amber'],
+  };
+
+  const [badge, badgeVariant] = stageLabels[stage] || [
+    stage.replaceAll('_', ' '),
+    'amber',
+  ];
+
+  const itemName = [
+    itemData.brandModel || itemData.itemType || 'Leather item',
+    itemData.color,
+  ]
+    .filter(Boolean)
+    .join(' - ');
+
+  const photoLabels = getPhotoLabels(data.photos);
+
+  return {
+    ...summary,
+    id: order,
+    order,
+    firestoreId: documentSnapshot.id,
+    userId: data.userId || '',
+    clientName:
+      personal.fullName ||
+      summary.clientName ||
+      'Client',
+    mobile: personal.mobile || '',
+    email: personal.email || '',
+    submittedAt: formatSubmittedAt(data.createdAt),
+    stage,
+    badge,
+    badgeVariant,
+    item: itemName || summary.item || 'Leather item',
+    colorMaterial: [itemData.color, itemData.material]
+      .filter(Boolean)
+      .join(' · ') || 'Not specified',
+    declaredIssue:
+      itemData.damageNotes ||
+      itemData.serviceConcern ||
+      'Not specified',
+    returnMethod: delivery.courier
+      ? `Courier delivery · ${delivery.courier}`
+      : summary.returnMethod || 'Not specified',
+    serviceProtocol:
+      assessment.protocolTitle ||
+      summary.serviceProtocol ||
+      'Pending assessment',
+    fee: Number(assessment.fee ?? summary.fee ?? 0),
+    photos: photoLabels,
     ai: {
-      confidence: 87,
+      confidence: Number(assessment.confidence ?? summary.ai?.confidence ?? 0),
       summary:
-        'Moderate restoration recommended. Reinforce handle stitch, deep-condition dry panels, and blend faded edge wear.',
-      tags: ['Condition 3/5', 'Low structural risk', '7–10 days'],
+        assessment.findings ||
+        summary.ai?.summary ||
+        'No assessment details available.',
+      tags:
+        assessment.damageTags ||
+        summary.ai?.tags ||
+        [],
     },
     clientNotes:
-      'Handle stitch opened further last week. Prefer courier return if possible.',
-    paymentStatus: 'Unpaid',
-    paymentRef: '',
-    courier: null,
-    declineReason: '',
-    pickup: {
-      date: 'Apr 19, 2026',
-      window: '2:00 PM – 4:00 PM',
-      alternate: 'Apr 20, 10:00 AM – 12:00 PM',
-      clientResponse: null,
-      clientAvailability: '',
-    },
-    completion: {
-      videoUploaded: true,
-      videoName: 'completion-039.mp4',
-      report:
-        'Handle stitch reinforced. Panels conditioned. Edge color blended and sealed.',
-      conditionScore: '4.5/5',
-      materials: 'Thread match, conditioner, edge dye',
-      careAdvice: 'Condition every 3–4 months. Avoid prolonged sun.',
-    },
-    feedback: null,
-  },
-  {
-    id: '#041',
-    clientName: 'Aria Gomez',
-    mobile: '+63 918 222 4401',
-    email: 'aria.gomez@email.com',
-    submittedAt: 'Yesterday · 4:02 PM',
-    stage: 'awaiting_delivery',
-    badge: 'In transit',
-    badgeVariant: 'amber',
-    item: 'Loewe Puzzle Bag',
-    colorMaterial: 'Tan calfskin',
-    declaredIssue: 'Corner scuffs, dry panels',
-    returnMethod: 'Courier delivery',
-    serviceProtocol: 'The Foundation',
-    fee: 1800,
-    photos: ['Front', 'Side', 'Back', 'Base', 'Damage detail'],
-    ai: {
-      confidence: 91,
-      summary: 'Foundation protocol suitable for corner scuffs and dryness.',
-      tags: ['Condition 2/5', 'Low risk', '5–7 days'],
-    },
-    clientNotes: 'Please start as soon as received.',
-    paymentStatus: 'Paid',
-    paymentRef: 'GC- thr-88421',
-    courier: {
-      name: 'LBC Express',
-      trackingNo: 'LBC-48291033',
-      sender: 'Aria Gomez',
-      recipient: 'Mabuli Atelier Workshop',
-      status: 'Delivered to front desk',
-      deliveredAt: 'Today · 11:20 AM',
-    },
-    declineReason: '',
-    pickup: {
+      assessment.clientNotes ||
+      summary.clientNotes ||
+      '',
+    paymentStatus: data.paymentStatus || summary.paymentStatus || 'Unpaid',
+    paymentRef: data.paymentRef || summary.paymentRef || '',
+    courier: data.courier || summary.courier || null,
+    declineReason: data.declineReason || summary.declineReason || '',
+    pickup: data.pickup || summary.pickup || {
       date: '',
       window: '',
       alternate: '',
       clientResponse: null,
       clientAvailability: '',
     },
-    completion: {
+    completion: data.completion || summary.completion || {
       videoUploaded: false,
       videoName: '',
       report: '',
@@ -95,251 +161,176 @@ const initialRequests = [
       materials: '',
       careAdvice: '',
     },
-    feedback: null,
-  },
-  {
-    id: '#042',
-    clientName: 'Ethan Cruz',
-    mobile: '+63 919 777 1022',
-    email: 'ethan.cruz@email.com',
-    submittedAt: 'Oct 2 · 1:40 PM',
-    stage: 'in_progress',
-    badge: 'In restoration',
-    badgeVariant: 'blue',
-    item: 'Gucci Marmont Wallet',
-    colorMaterial: 'Black leather',
-    declaredIssue: 'Edge wear, color fade',
-    returnMethod: 'Courier delivery',
-    serviceProtocol: 'The Foundation',
-    fee: 1800,
-    photos: ['Front', 'Side', 'Back', 'Base', 'Damage detail'],
-    ai: {
-      confidence: 88,
-      summary: 'Edge dressing and color touch-up recommended.',
-      tags: ['Condition 3/5', 'Low risk', '5–7 days'],
-    },
-    clientNotes: '',
-    paymentStatus: 'Paid',
-    paymentRef: 'GC-THR-77102',
-    courier: {
-      name: 'GrabExpress',
-      trackingNo: 'GE-991002',
-      sender: 'Ethan Cruz',
-      recipient: 'Mabuli Atelier Workshop',
-      status: 'Item received',
-      deliveredAt: 'Oct 3 · 2:10 PM',
-    },
-    declineReason: '',
-    pickup: {
-      date: 'Oct 16, 2026',
-      window: '2:00 PM – 4:00 PM',
-      alternate: 'Oct 17, 10:00 AM – 12:00 PM',
-      clientResponse: null,
-      clientAvailability: '',
-    },
-    completion: {
-      videoUploaded: false,
-      videoName: '',
-      report: '',
-      conditionScore: '',
-      materials: '',
-      careAdvice: '',
-    },
-    feedback: null,
-  },
-  {
-    id: '#043',
-    clientName: 'Lina Reyes',
-    mobile: '+63 927 111 8844',
-    email: 'lina.reyes@email.com',
-    submittedAt: 'Sep 28 · 10:05 AM',
-    stage: 'reschedule_needed',
-    badge: 'Reschedule needed',
-    badgeVariant: 'amber',
-    item: 'Hermès Kelly Soft',
-    colorMaterial: 'Etoupe Togo',
-    declaredIssue: 'Handle wear, dryness',
-    returnMethod: 'Courier delivery',
-    serviceProtocol: 'The Heritage Glass',
-    fee: 3500,
-    photos: ['Front', 'Side', 'Back', 'Base', 'Damage detail'],
-    ai: {
-      confidence: 84,
-      summary: 'Heritage protocol for premium handle and panel care.',
-      tags: ['Condition 3/5', 'Medium detail', '10–14 days'],
-    },
-    clientNotes: 'Cannot do original pickup window.',
-    paymentStatus: 'Paid',
-    paymentRef: 'GC-THR-55019',
-    courier: {
-      name: 'GrabExpress',
-      trackingNo: 'GE-550190',
-      sender: 'Lina Reyes',
-      recipient: 'Mabuli Atelier Workshop',
-      status: 'Item received',
-      deliveredAt: 'Sep 30 · 3:40 PM',
-    },
-    declineReason: '',
-    pickup: {
-      date: 'Oct 12, 2026',
-      window: '2:00 PM – 4:00 PM',
-      alternate: 'Oct 13, 10:00 AM – 12:00 PM',
-      clientResponse: 'no',
-      clientAvailability:
-        'I am only available Oct 18 afternoon or Oct 19 morning.',
-    },
-    completion: {
-      videoUploaded: true,
-      videoName: 'completion-043.mp4',
-      report:
-        'Handles conditioned and reshaped. Panels nourished. Edges sealed.',
-      conditionScore: '4.8/5',
-      materials: 'Conditioner, edge paint, protective finish',
-      careAdvice: 'Store stuffed; avoid humidity.',
-    },
-    feedback: null,
-  },
-  {
-    id: '#038',
-    clientName: 'Julian Tan',
-    mobile: '+63 916 444 2200',
-    email: 'julian.tan@email.com',
-    submittedAt: 'Sep 10 · 8:30 AM',
-    stage: 'complete',
-    badge: 'Archived',
-    badgeVariant: 'mint',
-    item: 'Bottega Veneta Cassette',
-    colorMaterial: 'Intrecciato green',
-    declaredIssue: 'Corner abrasion',
-    returnMethod: 'Courier delivery',
-    serviceProtocol: 'Essential Endurance',
-    fee: 800,
-    photos: ['Front', 'Side', 'Back', 'Base', 'Damage detail'],
-    ai: {
-      confidence: 90,
-      summary: 'Light restoration and conditioning sufficient.',
-      tags: ['Condition 2/5', 'Low risk', '3–5 days'],
-    },
-    clientNotes: '',
-    paymentStatus: 'Paid',
-    paymentRef: 'GC-THR-33011',
-    courier: {
-      name: 'LBC Express',
-      trackingNo: 'LBC-330110',
-      sender: 'Julian Tan',
-      recipient: 'Mabuli Atelier Workshop',
-      status: 'Returned to client',
-      deliveredAt: 'Sep 18 · 1:15 PM',
-    },
-    declineReason: '',
-    pickup: {
-      date: 'Sep 17, 2026',
-      window: '1:00 PM – 3:00 PM',
-      alternate: '',
-      clientResponse: 'yes',
-      clientAvailability: '',
-    },
-    completion: {
-      videoUploaded: true,
-      videoName: 'completion-038.mp4',
-      report: 'Corners cleaned and conditioned. Finish restored.',
-      conditionScore: '4.7/5',
-      materials: 'Cleaner, conditioner',
-      careAdvice: 'Wipe gently after use.',
-    },
-    feedback: {
-      rating: 5,
-      date: 'Sep 18, 2026',
-      comments:
-        'Beautiful work. Bag looks renewed and packaging was careful.',
-      tags: ['Craftsmanship', 'Communication'],
-      concerns: 'None',
-      followUp: 'Conditioning reminder · Dec 18, 2026',
-      warranty: '30-day workmanship warranty',
-    },
-  },
-];
-
-const AdminRequestContext = createContext(undefined);
+    feedback: data.feedback || summary.feedback || null,
+  };
+}
 
 export function AdminRequestProvider({ children }) {
-  const [requests, setRequests] = useState(initialRequests);
-  const [selectedId, setSelectedId] = useState(initialRequests[0].id);
+  const [requests, setRequests] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const updateRequest = (id, patch) => {
-    setRequests((current) =>
-      current.map((request) =>
-        request.id === id ? { ...request, ...patch } : request,
-      ),
+  useEffect(() => {
+    const requestsQuery = query(
+      collection(db, 'serviceRequests'),
+      orderBy('createdAt', 'desc'),
     );
-  };
 
-  const acceptRequest = (id) => {
-    updateRequest(id, {
-      stage: 'accepted',
-      badge: 'Accepted',
-      badgeVariant: 'mint',
-    });
-  };
+    const unsubscribe = onSnapshot(
+      requestsQuery,
+      (snapshot) => {
+        const firestoreRequests = snapshot.docs.map(
+          mapFirestoreRequest,
+        );
 
-  const declineRequest = (id, reason, notification) => {
-    updateRequest(id, {
-      stage: 'declined',
-      badge: 'Declined',
-      badgeVariant: 'amber',
-      declineReason: reason,
-      clientNotification: notification,
-    });
-  };
+        setRequests(firestoreRequests);
+        setLoadError('');
+        setLoading(false);
 
-  const confirmItemReceived = (id) => {
-    updateRequest(id, {
-      stage: 'in_progress',
-      badge: 'In restoration',
-      badgeVariant: 'blue',
-    });
-  };
+        setSelectedId((currentId) => {
+          if (
+            currentId &&
+            firestoreRequests.some((request) => request.id === currentId)
+          ) {
+            return currentId;
+          }
 
-  const sendPickupNotice = (id, pickup) => {
-    updateRequest(id, {
-      stage: 'awaiting_pickup_response',
-      badge: 'Awaiting pickup response',
-      badgeVariant: 'amber',
-      pickup: {
-        ...pickup,
-        clientResponse: null,
+          return firestoreRequests[0]?.id ?? null;
+        });
       },
-    });
-  };
-
-  const reschedulePickup = (id, pickup, reason, notification) => {
-    updateRequest(id, {
-      stage: 'awaiting_pickup_response',
-      badge: 'New schedule proposed',
-      badgeVariant: 'blue',
-      pickup: {
-        ...pickup,
-        clientResponse: null,
-        rescheduleReason: reason,
+      (error) => {
+        console.error('Failed to load service requests:', error);
+        setLoadError(error.message || 'Unable to load service requests.');
+        setLoading(false);
       },
-      clientNotification: notification,
-    });
-  };
+    );
 
-  const markReturnSent = (id) => {
-    updateRequest(id, {
-      stage: 'return_delivery',
-      badge: 'Return in transit',
-      badgeVariant: 'amber',
-    });
-  };
+    return unsubscribe;
+  }, []);
+
+  const updateRequest = useCallback(async (id, patch) => {
+    const request = requests.find(
+      (item) => item.id === id || item.firestoreId === id,
+    );
+
+    if (!request?.firestoreId) {
+      throw new Error('This request could not be found in Firestore.');
+    }
+
+    const firestorePatch = {
+      updatedAt: serverTimestamp(),
+    };
+
+    if (patch.stage !== undefined) {
+      firestorePatch.status = patch.stage;
+    }
+
+    if (patch.declineReason !== undefined) {
+      firestorePatch.declineReason = patch.declineReason;
+    }
+
+    if (patch.clientNotification !== undefined) {
+      firestorePatch.clientNotification = patch.clientNotification;
+    }
+
+    if (patch.paymentStatus !== undefined) {
+      firestorePatch.paymentStatus = patch.paymentStatus;
+    }
+
+    if (patch.paymentRef !== undefined) {
+      firestorePatch.paymentRef = patch.paymentRef;
+    }
+
+    if (patch.pickup !== undefined) {
+      firestorePatch.pickup = patch.pickup;
+    }
+
+    if (patch.courier !== undefined) {
+      firestorePatch.courier = patch.courier;
+    }
+
+    if (patch.completion !== undefined) {
+      firestorePatch.completion = patch.completion;
+    }
+
+    if (patch.feedback !== undefined) {
+      firestorePatch.feedback = patch.feedback;
+    }
+
+    await updateDoc(
+      doc(db, 'serviceRequests', request.firestoreId),
+      firestorePatch,
+    );
+  }, [requests]);
+
+  const acceptRequest = useCallback(
+    (id) =>
+      updateRequest(id, {
+        stage: 'accepted',
+      }),
+    [updateRequest],
+  );
+
+  const declineRequest = useCallback(
+    (id, reason, notification) =>
+      updateRequest(id, {
+        stage: 'declined',
+        declineReason: reason,
+        clientNotification: notification,
+      }),
+    [updateRequest],
+  );
+
+  const confirmItemReceived = useCallback(
+    (id) =>
+      updateRequest(id, {
+        stage: 'in_progress',
+      }),
+    [updateRequest],
+  );
+
+  const sendPickupNotice = useCallback(
+    (id, pickup) =>
+      updateRequest(id, {
+        stage: 'awaiting_pickup_response',
+        pickup: {
+          ...pickup,
+          clientResponse: null,
+        },
+      }),
+    [updateRequest],
+  );
+
+  const reschedulePickup = useCallback(
+    (id, pickup, reason, notification) =>
+      updateRequest(id, {
+        stage: 'awaiting_pickup_response',
+        pickup: {
+          ...pickup,
+          clientResponse: null,
+          rescheduleReason: reason,
+        },
+        clientNotification: notification,
+      }),
+    [updateRequest],
+  );
+
+  const markReturnSent = useCallback(
+    (id) =>
+      updateRequest(id, {
+        stage: 'return_delivery',
+      }),
+    [updateRequest],
+  );
 
   const selectedRequest =
-    requests.find((item) => item.id === selectedId) || requests[0];
+    requests.find((item) => item.id === selectedId) || requests[0] || null;
 
   const counts = useMemo(() => {
     const byStage = (stage) =>
       requests.filter((item) => item.stage === stage).length;
+
     return {
       pendingReview: byStage('pending_review'),
       awaitingDelivery: byStage('awaiting_delivery'),
@@ -359,6 +350,8 @@ export function AdminRequestProvider({ children }) {
       setSelectedId,
       selectedRequest,
       counts,
+      loading,
+      loadError,
       updateRequest,
       acceptRequest,
       declineRequest,
@@ -367,7 +360,21 @@ export function AdminRequestProvider({ children }) {
       reschedulePickup,
       markReturnSent,
     }),
-    [requests, selectedId, selectedRequest, counts],
+    [
+      requests,
+      selectedId,
+      selectedRequest,
+      counts,
+      loading,
+      loadError,
+      updateRequest,
+      acceptRequest,
+      declineRequest,
+      confirmItemReceived,
+      sendPickupNotice,
+      reschedulePickup,
+      markReturnSent,
+    ],
   );
 
   return (
@@ -379,28 +386,40 @@ export function AdminRequestProvider({ children }) {
 
 export function useAdminRequest() {
   const context = useContext(AdminRequestContext);
+
   if (!context) {
-    throw new Error('useAdminRequest must be used inside AdminRequestProvider');
+    throw new Error(
+      'useAdminRequest must be used inside AdminRequestProvider',
+    );
   }
+
   return context;
 }
 
 export function routeForAdminStage(stage, id) {
   const params = { id };
+
   switch (stage) {
     case 'pending_review':
+    case 'accepted':
       return { pathname: '/admin-tabs/request-review', params };
+
     case 'declined':
       return { pathname: '/admin-tabs/decline-request', params };
+
     case 'awaiting_delivery':
       return { pathname: '/admin-tabs/delivery-proof', params };
+
     case 'in_progress':
     case 'awaiting_pickup_response':
       return { pathname: '/admin-tabs/completion-pickup', params };
+
     case 'reschedule_needed':
       return { pathname: '/admin-tabs/reschedule-pickup', params };
+
     case 'complete':
       return { pathname: '/admin-tabs/completed-service', params };
+
     default:
       return { pathname: '/admin-tabs/request-review', params };
   }

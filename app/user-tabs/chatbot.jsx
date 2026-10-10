@@ -259,7 +259,7 @@ export default function ChatbotScreen() {
       id: 'welcome',
       role: 'assistant',
       text:
-        'Hello! I’m the MABULI AI Assistant. I can help you understand leather condition concerns and our restoration services. What would you like to know?',
+        'Hello! I\'m the MABULI AI Assistant. I can help you understand leather condition concerns and our restoration services. What would you like to know?',
     },
   ]);
 
