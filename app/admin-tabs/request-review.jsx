@@ -21,30 +21,37 @@ export default function RequestReviewScreen() {
     requests[0];
 
   
-const handleAccept = async () => {
-  try {
-    await acceptRequest(request.id);
-    setSelectedId(request.id);
+  const handleAccept = async () => {
+    try {
+      if (!request?.id) return;
+      await acceptRequest(request.id);
+      setSelectedId(request.id);
+      router.replace('/admin-tabs/admin-dashboard');
+    } catch (error) {
+      console.error('Failed to accept request:', error);
 
-    Alert.alert(
-      'Request accepted',
-      'The request status was saved. Client notification still needs to be connected.',
-      [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/admin-tabs/admin-forms'),
-        },
-      ],
-    );
-  } catch (error) {
-    console.error('Failed to accept request:', error);
+      Alert.alert(
+        'Unable to accept request',
+        error.message || 'Please try again.',
+      );
+    }
+  };
 
-    Alert.alert(
-      'Unable to accept request',
-      error.message || 'Please try again.',
+  if (!request) {
+    return (
+      <SafeAreaView
+        style={[styles.screen, { backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center', padding: 24 }]}
+        edges={['top']}
+      >
+        <Text style={{ color: palette.textSecondary }}>No request found.</Text>
+        <PrimaryButton
+          label="Go to Dashboard"
+          style={{ marginTop: 16 }}
+          onPress={() => router.replace('/admin-tabs/admin-dashboard')}
+        />
+      </SafeAreaView>
     );
   }
-};
 
   return (
     <SafeAreaView
@@ -145,33 +152,49 @@ const handleAccept = async () => {
           </SectionCard>
         ) : null}
 
-        <InfoBanner
-          tone="info"
-          text="Accepting notifies the client and moves them to payment and item tracking. Declining requires a reason sent to the client."
-        />
+        {request.stage === 'pending_review' ? (
+          <>
+            <InfoBanner
+              tone="info"
+              text="Accepting notifies the client and moves them to payment and item tracking. Declining requires a reason sent to the client."
+            />
 
-        <View style={styles.actions}>
-          <View style={{ flex: 1 }}>
+            <View style={styles.actions}>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Decline"
+                  variant="secondary"
+                  icon="close"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/admin-tabs/decline-request',
+                      params: { id: request.id },
+                    })
+                  }
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Accept Request"
+                  icon="checkmark"
+                  onPress={handleAccept}
+                />
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={{ gap: 10, marginTop: 8 }}>
+            <InfoBanner
+              tone="mint"
+              text={`This request is already processed (Status: ${request.badge || request.stage}). Decision has already been made.`}
+            />
             <PrimaryButton
-              label="Decline"
+              label="Return to Forms"
               variant="secondary"
-              icon="close"
-              onPress={() =>
-                router.push({
-                  pathname: '/admin-tabs/decline-request',
-                  params: { id: request.id },
-                })
-              }
+              onPress={() => router.replace('/admin-tabs/admin-forms')}
             />
           </View>
-          <View style={{ flex: 1 }}>
-            <PrimaryButton
-              label="Accept Request"
-              icon="checkmark"
-              onPress={handleAccept}
-            />
-          </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

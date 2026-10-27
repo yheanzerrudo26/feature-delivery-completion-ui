@@ -13,6 +13,7 @@ const HIDDEN = [
   'completion-pickup',
   'completed-service',
   'admin-log-details',
+  'admin-return-delivery',
   'settings',
   'edit-profile',
 ];

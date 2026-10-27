@@ -7,15 +7,77 @@ import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RequestAcceptedScreen() {
   const { palette } = useAppTheme();
   const { order } = useLocalSearchParams();
-  const { requests, setSelectedOrder } = useUserRequest();
+  const { requests, setSelectedOrder, loadingRequests } = useUserRequest();
   const request =
-    requests.find((item) => item.order === order) || requests[0];
+    requests.find((item) => item.order === order) ||
+    (order ? requests.find((item) => String(item.order).includes(order)) : null) ||
+    requests.find((item) => item.stage === 'accepted') ||
+    requests[0];
+
+  if (!request) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.screen,
+          {
+            backgroundColor: palette.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          },
+        ]}
+        edges={['top']}
+      >
+        {loadingRequests ? (
+          <>
+            <ActivityIndicator size="large" color={palette.accent} />
+            <Text style={{ color: palette.textSecondary, marginTop: 12 }}>
+              Loading request details...
+            </Text>
+          </>
+        ) : (
+          <>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={52}
+              color={palette.accent}
+            />
+            <Text
+              style={{
+                color: palette.textPrimary,
+                fontSize: 18,
+                fontWeight: '700',
+                marginTop: 12,
+              }}
+            >
+              No Request Selected
+            </Text>
+            <Text
+              style={{
+                color: palette.textSecondary,
+                marginTop: 6,
+                textAlign: 'center',
+              }}
+            >
+              Please return to the dashboard to select your accepted request.
+            </Text>
+            <View style={{ marginTop: 20, width: '100%' }}>
+              <PrimaryButton
+                label="Go to Dashboard"
+                onPress={() => router.replace('/user-tabs/user-dashboard')}
+              />
+            </View>
+          </>
+        )}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -26,6 +88,7 @@ export default function RequestAcceptedScreen() {
         <RequestScreenHeader
           title="Request Accepted"
           subtitle="Your request was accepted. Continue to payment and tracking."
+          onBack={() => router.replace('/user-tabs/user-dashboard')}
         />
 
         <View style={styles.hero}>
@@ -41,15 +104,15 @@ export default function RequestAcceptedScreen() {
           <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
             Transaction summary
           </Text>
-          <SummaryRow label="Client" value={request.clientName || 'Client'} />
-          <SummaryRow label="Item" value={request.item} />
+          <SummaryRow label="Client" value={request?.clientName || 'Client'} />
+          <SummaryRow label="Item" value={request?.item || 'Item'} />
           <SummaryRow
             label="Date accepted"
-            value={request.acceptedDate || 'Today'}
+            value={request?.acceptedDate || 'Today'}
           />
           <SummaryRow
             label="Turnaround"
-            value={request.turnaround || '7–10 business days'}
+            value={request?.turnaround || '7–10 business days'}
           />
         </SectionCard>
 
@@ -58,12 +121,12 @@ export default function RequestAcceptedScreen() {
             Selected service protocol
           </Text>
           <Text style={[styles.protocol, { color: palette.accent }]}>
-            {request.serviceProtocol}
+            {request?.serviceProtocol || 'Repair & Deep Conditioning'}
           </Text>
           <View style={styles.feeRow}>
             <Text style={{ color: palette.textSecondary }}>Service fee</Text>
             <Text style={[styles.fee, { color: palette.textPrimary }]}>
-              ₱{(request.fee || 0).toLocaleString()}
+              ₱{(request?.fee || 0).toLocaleString()}
             </Text>
           </View>
         </SectionCard>
@@ -73,10 +136,10 @@ export default function RequestAcceptedScreen() {
             Assigned artisan
           </Text>
           <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>
-            {request.artisan?.name || 'Artisan'}
+            {request?.artisan?.name || 'Mabuli Artisan'}
           </Text>
           <Text style={{ color: palette.textSecondary }}>
-            {request.artisan?.contact || 'Contact shared after acceptance'}
+            {request?.artisan?.contact || 'Contact shared after acceptance'}
           </Text>
         </SectionCard>
 
@@ -84,10 +147,12 @@ export default function RequestAcceptedScreen() {
           label="Continue to Payment Directions"
           icon="arrow-forward"
           onPress={() => {
-            setSelectedOrder(request.order);
+            if (request?.order) {
+              setSelectedOrder(request.order);
+            }
             router.push({
               pathname: '/user-tabs/payment-directions',
-              params: { order: request.order },
+              params: { order: request?.order },
             });
           }}
         />

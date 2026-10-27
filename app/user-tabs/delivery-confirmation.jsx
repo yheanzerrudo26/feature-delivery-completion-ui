@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function DeliveryConfirmationScreen() {
   const { palette } = useAppTheme();
@@ -23,16 +24,33 @@ export default function DeliveryConfirmationScreen() {
     updateDeliveryField,
     updateRequestStage,
     setSelectedOrder,
+    loadingRequests,
   } = useUserRequest();
   const request =
-    requests.find((item) => item.order === order) || requests[0];
+    requests.find((item) => item.order === order) ||
+    (order ? requests.find((item) => String(item.order).includes(order)) : null) ||
+    requests[0];
 
-  const canSubmit =
-    draft.delivery.courier.trim() &&
-    draft.delivery.trackingNo.trim() &&
-    draft.delivery.receiptUri;
+  const firestoreProof = request?.delivery?.proofUri || request?.delivery?.receiptUri || null;
+  const firestoreLink = request?.delivery?.sharedLink || '';
 
-  const pickReceipt = async () => {
+  const [proofUri, setProofUri] = useState(() => firestoreProof || draft.delivery.proofUri || null);
+  const [sharedLink, setSharedLink] = useState(() => firestoreLink || draft.delivery.sharedLink || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Synchronize when request.delivery updates from Firestore or resubmission
+  useEffect(() => {
+    if (firestoreProof) {
+      setProofUri(firestoreProof);
+    }
+    if (firestoreLink) {
+      setSharedLink(firestoreLink);
+    }
+  }, [firestoreProof, firestoreLink]);
+
+  const canSubmit = Boolean(proofUri) && Boolean(sharedLink.trim());
+
+  const pickProof = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -40,26 +58,79 @@ export default function DeliveryConfirmationScreen() {
       quality: 0.7,
     });
     if (!result.canceled && result.assets?.[0]) {
-      updateDeliveryField('receiptUri', result.assets[0].uri);
+      const newUri = result.assets[0].uri;
+      setProofUri(newUri);
+      updateDeliveryField('proofUri', newUri);
+      updateDeliveryField('receiptUri', newUri);
     }
   };
 
-  const handleSubmit = () => {
-    updateRequestStage(request.order, {
-      stage: 'in_progress',
-      badge: 'In restoration',
-      badgeVariant: 'blue',
-      detail: 'Artisan will start once the item is received',
-      progress: 0.55,
-      delivery: {
-        courier: draft.delivery.courier,
-        trackingNo: draft.delivery.trackingNo,
-        receiptUri: draft.delivery.receiptUri,
-      },
-    });
-    setSelectedOrder(request.order);
-    router.replace('/user-tabs/user-dashboard');
+  const handleLinkChange = (value) => {
+    setSharedLink(value);
+    updateDeliveryField('sharedLink', value);
   };
+
+  const handleSubmit = async () => {
+    if (!request?.order || !canSubmit || submitting) return;
+    setSubmitting(true);
+    try {
+      const finalProof = proofUri;
+      const finalLink = sharedLink.trim();
+
+      await updateRequestStage(request.order, {
+        stage: 'awaiting_delivery',
+        badge: 'Item sent',
+        badgeVariant: 'blue',
+        detail: 'Proof submitted · Waiting for workshop confirmation',
+        progress: 0.55,
+        delivery: {
+          ...(request.delivery || {}),
+          proofUri: finalProof,
+          receiptUri: finalProof,
+          sharedLink: finalLink,
+          updatedAt: new Date().toISOString(),
+        },
+        adminDeliveryNote: null,
+        deliveryRejectedAt: null,
+      });
+
+      updateDeliveryField('proofUri', finalProof);
+      updateDeliveryField('receiptUri', finalProof);
+      updateDeliveryField('sharedLink', finalLink);
+      setSelectedOrder(request.order);
+
+      Alert.alert(
+        'Delivery Form Sent',
+        'Your delivery proof picture and shared link have been submitted to the workshop.',
+        [
+          {
+            text: 'Go to Dashboard',
+            onPress: () => router.replace('/user-tabs/user-dashboard'),
+          },
+        ],
+      );
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to submit delivery form.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!request) {
+    return (
+      <KeyboardAwareScreen
+        style={{ backgroundColor: palette.background }}
+        contentContainerStyle={[styles.container, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}
+      >
+        <Text style={{ color: palette.textSecondary }}>Loading delivery details...</Text>
+        <PrimaryButton
+          label="Return to Dashboard"
+          style={{ marginTop: 16 }}
+          onPress={() => router.replace('/user-tabs/user-dashboard')}
+        />
+      </KeyboardAwareScreen>
+    );
+  }
 
   return (
     <KeyboardAwareScreen
@@ -69,7 +140,8 @@ export default function DeliveryConfirmationScreen() {
     >
       <RequestScreenHeader
         title="Delivery Confirmation"
-        subtitle="Book a third-party courier, then upload the e-receipt."
+        subtitle="Upload the proof picture and the shared link of the item."
+        onBack={() => router.replace('/user-tabs/user-dashboard')}
       />
 
       <SectionCard>
@@ -81,17 +153,17 @@ export default function DeliveryConfirmationScreen() {
         </Text>
         <Text style={{ color: palette.textSecondary, lineHeight: 20 }}>
           214 Leather Lane, Makati City{'\n'}
-          Contact: {request.artisan?.name || 'Artisan'} ·{' '}
-          {request.artisan?.contact || ''}
+          Contact: {request?.artisan?.name || 'Artisan'} ·{' '}
+          {request?.artisan?.contact || ''}
         </Text>
       </SectionCard>
 
       <SectionCard>
         <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-          Upload courier e-receipt
+          Proof picture
         </Text>
         <Pressable
-          onPress={pickReceipt}
+          onPress={pickProof}
           style={[
             styles.uploadBox,
             {
@@ -100,9 +172,9 @@ export default function DeliveryConfirmationScreen() {
             },
           ]}
         >
-          {draft.delivery.receiptUri ? (
+          {proofUri ? (
             <Image
-              source={{ uri: draft.delivery.receiptUri }}
+              source={{ uri: proofUri }}
               style={styles.receiptPreview}
               contentFit="cover"
             />
@@ -114,33 +186,22 @@ export default function DeliveryConfirmationScreen() {
                 color={palette.accent}
               />
               <Text style={{ color: palette.textSecondary }}>
-                Tap to upload screenshot
+                Tap to upload proof picture
               </Text>
             </>
           )}
         </Pressable>
 
         <View>
-          <FieldLabel>Courier</FieldLabel>
+          <FieldLabel>Shared link of the item</FieldLabel>
           <TextInput
-            value={draft.delivery.courier}
-            onChangeText={(value) => updateDeliveryField('courier', value)}
-            placeholder="GrabExpress"
+            value={sharedLink}
+            onChangeText={handleLinkChange}
+            placeholder="https://example.com"
             placeholderTextColor={palette.textSecondary}
-            style={[
-              styles.input,
-              { backgroundColor: palette.softCard, color: palette.textPrimary },
-            ]}
-          />
-        </View>
-
-        <View>
-          <FieldLabel>Tracking / booking no.</FieldLabel>
-          <TextInput
-            value={draft.delivery.trackingNo}
-            onChangeText={(value) => updateDeliveryField('trackingNo', value)}
-            placeholder="GE-4839201"
-            placeholderTextColor={palette.textSecondary}
+            autoCapitalize="none"
+            keyboardType="url"
+            autoCorrect={false}
             style={[
               styles.input,
               { backgroundColor: palette.softCard, color: palette.textPrimary },
@@ -149,16 +210,35 @@ export default function DeliveryConfirmationScreen() {
         </View>
       </SectionCard>
 
-      <InfoBanner
-        tone="warn"
-        text="Pay the courier fee directly to the rider. Service starts after the artisan confirms item receipt."
+      {proofUri ? (
+        <InfoBanner
+          tone="mint"
+          text="Delivery proof has been uploaded. Waiting for the workshop admin to confirm receipt."
+        />
+      ) : (
+        <InfoBanner
+          tone="warn"
+          text="Service starts after the artisan confirms item receipt using the proof picture and shared link."
+        />
+      )}
+
+      <PrimaryButton
+        label={
+          submitting
+            ? 'Sending…'
+            : firestoreProof
+              ? 'Update Delivery Proof'
+              : 'Submit Delivery Proof'
+        }
+        icon="checkmark"
+        disabled={!canSubmit || submitting}
+        onPress={handleSubmit}
       />
 
       <PrimaryButton
-        label="Submit Delivery Proof"
-        icon="checkmark"
-        disabled={!canSubmit}
-        onPress={handleSubmit}
+        label="Return to Dashboard"
+        variant="secondary"
+        onPress={() => router.replace('/user-tabs/user-dashboard')}
       />
     </KeyboardAwareScreen>
   );

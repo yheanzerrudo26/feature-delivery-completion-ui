@@ -16,16 +16,35 @@ export default function CompletedServiceScreen() {
   const { requests } = useAdminRequest();
   const request =
     requests.find((item) => item.id === id) ||
-    requests.find((item) => item.stage === 'complete') ||
+    requests.find((item) => item.stage === 'complete' || item.stage === 'feedback') ||
     requests[0];
 
+  if (!request) {
+    return (
+      <SafeAreaView
+        style={[styles.screen, { backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center', padding: 24 }]}
+        edges={['top']}
+      >
+        <Text style={{ color: palette.textSecondary }}>No request found.</Text>
+        <PrimaryButton
+          label="Return to Forms"
+          style={{ marginTop: 16 }}
+          onPress={() => router.replace('/admin-tabs/admin-forms')}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const isAwaitingReview = request.stage === 'feedback' || (request.stage !== 'complete' && !request.feedback?.comments);
+  const hasFeedback = Boolean(request.feedback?.comments || request.feedback?.rating);
+
   const feedback = request.feedback || {
-    rating: 5,
-    date: '—',
-    comments: 'No feedback recorded yet.',
-    tags: [],
-    concerns: 'None',
-    followUp: '—',
+    rating: hasFeedback ? request.feedback?.rating : 0,
+    date: request.feedback?.date || '—',
+    comments: request.feedback?.comments || '',
+    tags: request.feedback?.tags || [],
+    concerns: request.feedback?.concerns || 'None',
+    followUp: request.feedback?.followUp || '—',
     warranty: '30-day workmanship warranty',
   };
 
@@ -36,36 +55,61 @@ export default function CompletedServiceScreen() {
     >
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <RequestScreenHeader
-          title="Completed Service"
-          subtitle="Archived record with delivery confirmation and client feedback."
+          title={isAwaitingReview ? 'Waiting for Client Review' : 'Completed Service'}
+          subtitle={
+            isAwaitingReview
+              ? 'The client has received the item and is completing their review.'
+              : 'Archived record with delivery confirmation and client feedback.'
+          }
           rightLabel={request.id}
-          onBack={() => router.replace('/admin-tabs/admin-view-logs')}
+          onBack={() => router.replace('/admin-tabs/admin-forms')}
         />
 
         <View style={styles.badgeRow}>
-          <Text style={styles.archived}>Archived</Text>
+          <Text
+            style={[
+              styles.archived,
+              isAwaitingReview
+                ? { backgroundColor: '#FFE6B8', color: '#8A5A06' }
+                : { backgroundColor: '#E5EAF2', color: '#4A5670' },
+            ]}
+          >
+            {isAwaitingReview ? 'Awaiting feedback' : 'Archived'}
+          </Text>
         </View>
 
-        <SectionCard style={styles.successCard}>
-          <Ionicons name="checkmark-circle" size={26} color="#157651" />
-          <Text style={{ color: '#157651', fontWeight: '700', flex: 1 }}>
-            Service closed · item returned to client
-          </Text>
-        </SectionCard>
+        {isAwaitingReview ? (
+          <View style={styles.waitingBanner}>
+            <View style={styles.waitingHeader}>
+              <Ionicons name="time" size={24} color="#B54708" />
+              <Text style={styles.waitingTitle}>Waiting for Client Review Response</Text>
+            </View>
+            <Text style={styles.waitingText}>
+              The client has confirmed receipt of their restored item ({request.item}). They have been prompted to complete the final review and rating form. Once submitted, their report will appear below.
+            </Text>
+          </View>
+        ) : (
+          <SectionCard style={styles.successCard}>
+            <Ionicons name="checkmark-circle" size={26} color="#157651" />
+            <Text style={{ color: '#157651', fontWeight: '700', flex: 1 }}>
+              Service closed · item returned to client
+            </Text>
+          </SectionCard>
+        )}
 
         <SectionCard>
           <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
             Final delivery confirmation
           </Text>
           <Text style={{ color: palette.textPrimary, fontWeight: '600' }}>
-            Collected by {request.clientName}
+            Collected by {request.clientName || 'Client'}
           </Text>
           <Text style={{ color: palette.textSecondary }}>
-            Released by Mabuli Artisan · {request.courier?.deliveredAt || '—'}
+            Released by Mabuli Artisan · {request.returnDelivery?.dispatchedAt ? 'Confirmed returned' : 'In transit'}
           </Text>
           <View style={styles.tagRow}>
-            <Pill label="Client signature" />
-            <Pill label="Pickup photo" />
+            <Pill label="Client received" />
+            <Pill label="Proof recorded" />
             <Pill label="Release logged" />
           </View>
         </SectionCard>
@@ -74,27 +118,45 @@ export default function CompletedServiceScreen() {
           <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
             Client rating & feedback
           </Text>
-          <View style={styles.stars}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Ionicons
-                key={star}
-                name={feedback.rating >= star ? 'star' : 'star-outline'}
-                size={22}
-                color="#F7B541"
-              />
-            ))}
-          </View>
-          <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
-            Received {feedback.date}
-          </Text>
-          <Text style={[styles.quote, { color: palette.textSecondary }]}>
-            “{feedback.comments}”
-          </Text>
-          <View style={styles.tagRow}>
-            {(feedback.tags || []).map((tag) => (
-              <Pill key={tag} label={tag} tone="amber" />
-            ))}
-          </View>
+          {hasFeedback ? (
+            <>
+              <View style={styles.stars}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Ionicons
+                    key={star}
+                    name={feedback.rating >= star ? 'star' : 'star-outline'}
+                    size={22}
+                    color="#F7B541"
+                  />
+                ))}
+              </View>
+              {feedback.date !== '—' && (
+                <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
+                  Received {feedback.date}
+                </Text>
+              )}
+              {feedback.comments ? (
+                <Text style={[styles.quote, { color: palette.textSecondary, marginTop: 6 }]}>
+                  “{feedback.comments}”
+                </Text>
+              ) : null}
+              <View style={styles.tagRow}>
+                {(feedback.tags || []).map((tag) => (
+                  <Pill key={tag} label={tag} tone="amber" />
+                ))}
+              </View>
+            </>
+          ) : (
+            <View style={styles.emptyFeedbackBox}>
+              <Ionicons name="chatbubble-ellipses-outline" size={32} color={palette.textSecondary} />
+              <Text style={{ color: palette.textPrimary, fontWeight: '600', marginTop: 4 }}>
+                Review Not Yet Submitted
+              </Text>
+              <Text style={{ color: palette.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 2 }}>
+                Waiting for the client to complete their rating and review comments.
+              </Text>
+            </View>
+          )}
         </SectionCard>
 
         <SectionCard>
@@ -197,4 +259,33 @@ const styles = StyleSheet.create({
   stars: { flexDirection: 'row', gap: 4 },
   quote: { fontSize: 14, lineHeight: 20, fontStyle: 'italic' },
   row: { flexDirection: 'row', gap: 8 },
+  waitingBanner: {
+    backgroundColor: '#FEF0C7',
+    borderColor: '#FDB022',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    gap: 6,
+  },
+  waitingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  waitingTitle: {
+    color: '#B54708',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  waitingText: {
+    color: '#7A2E0E',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  emptyFeedbackBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 4,
+  },
 });

@@ -38,21 +38,33 @@ const QUICK_REASONS = [
 export default function ReschedulePickupScreen() {
   const { palette } = useAppTheme();
   const { id } = useLocalSearchParams();
-  const { requests, reschedulePickup } = useAdminRequest();
+  const { requests, reschedulePickup, markReturnDelivery } = useAdminRequest();
   const request =
     requests.find((item) => item.id === id) ||
     requests.find((item) => item.stage === 'reschedule_needed') ||
     requests[0];
 
   const [selectedDate, setSelectedDate] = useState(() =>
-    parseDisplayDate(request.pickup?.date, new Date(2026, 9, 18)),
+    parseDisplayDate(request?.pickup?.date, new Date(2026, 9, 18)),
   );
   const [date, setDate] = useState(
-    () => request.pickup?.date || formatDisplayDate(new Date(2026, 9, 18)),
+    () => request?.pickup?.date || formatDisplayDate(new Date(2026, 9, 18)),
   );
   const [window, setWindow] = useState(TIME_OPTIONS[2]);
   const [reason, setReason] = useState('Client availability conflict');
   const [notes, setNotes] = useState('');
+
+  const handleApproveClientSchedule = () => {
+    const approvedDate = request.pickup?.preferredDate || date;
+    const approvedWindow = request.pickup?.preferredWindow || window;
+    markReturnDelivery(request.id, {
+      date: approvedDate,
+      window: approvedWindow,
+      alternate: '',
+      clientResponse: 'yes',
+    });
+    router.replace('/admin-tabs/admin-forms');
+  };
 
   const notification = useMemo(() => {
     return `Hi ${request.clientName}, we updated the return pickup for request ${request.id} (${request.item}). New proposed schedule: ${date}, ${window}. ${
@@ -215,6 +227,14 @@ export default function ReschedulePickupScreen() {
           <Text style={{ color: palette.textSecondary }}>{window}</Text>
         </View>
       </View>
+
+      {request.pickup?.preferredDate ? (
+        <PrimaryButton
+          label={`Approve Client's Schedule (${request.pickup.preferredDate}) & Ship`}
+          icon="checkmark-circle"
+          onPress={handleApproveClientSchedule}
+        />
+      ) : null}
 
       <PrimaryButton
         label="Confirm Reschedule"

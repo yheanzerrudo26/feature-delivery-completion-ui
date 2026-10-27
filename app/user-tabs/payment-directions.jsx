@@ -16,8 +16,26 @@ export default function PaymentDirectionsScreen() {
   const { order } = useLocalSearchParams();
   const { requests } = useUserRequest();
   const request =
-    requests.find((item) => item.order === order) || requests[0];
+    requests.find((item) => item.order === order) ||
+    (order ? requests.find((item) => String(item.order).includes(order)) : null) ||
+    requests[0];
   const [agreed, setAgreed] = useState(false);
+
+  if (!request) {
+    return (
+      <KeyboardAwareScreen
+        style={{ backgroundColor: palette.background }}
+        contentContainerStyle={[styles.container, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}
+      >
+        <Text style={{ color: palette.textSecondary }}>Loading payment details...</Text>
+        <PrimaryButton
+          label="Return to Dashboard"
+          style={{ marginTop: 16 }}
+          onPress={() => router.replace('/user-tabs/user-dashboard')}
+        />
+      </KeyboardAwareScreen>
+    );
+  }
 
   return (
     <KeyboardAwareScreen
@@ -28,6 +46,7 @@ export default function PaymentDirectionsScreen() {
       <RequestScreenHeader
         title="Payment Directions"
         subtitle="Read the warnings before paying the service fee."
+        onBack={() => router.replace('/user-tabs/user-dashboard')}
       />
 
       <InfoBanner
@@ -39,11 +58,11 @@ export default function PaymentDirectionsScreen() {
         <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
           Payment summary
         </Text>
-        <Row label="Request" value={request.order} palette={palette} />
-        <Row label="Service" value={request.serviceProtocol} palette={palette} />
+        <Row label="Request" value={request?.order} palette={palette} />
+        <Row label="Service" value={request?.serviceProtocol} palette={palette} />
         <Row
           label="Service fee"
-          value={`₱${(request.fee || 0).toLocaleString()}`}
+          value={`₱${(request?.fee || 0).toLocaleString()}`}
           palette={palette}
           bold
         />
@@ -58,7 +77,7 @@ export default function PaymentDirectionsScreen() {
           'Delivery / courier cost is paid at drop-off, not in this payment.',
           'If delivery is Cash by Recipient and unpaid, service will not start.',
           'Book a third-party courier (e.g. Grab Express) after payment.',
-          'Upload the courier e-receipt so the artisan can confirm item receipt.',
+          'Upload the proof picture and shared item link so the artisan can confirm receipt.',
         ].map((item, index) => (
           <View key={item} style={styles.listRow}>
             <Text style={[styles.listIndex, { color: palette.accent }]}>

@@ -9,15 +9,78 @@ import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RequestSubmittedScreen() {
   const { palette } = useAppTheme();
   const { order } = useLocalSearchParams();
-  const { requests, setSelectedOrder } = useUserRequest();
+  const { requests, setSelectedOrder, loadingRequests } = useUserRequest();
   const request =
-    requests.find((item) => item.order === order) || requests[0];
+    requests.find((item) => item.order === order) ||
+    (order ? requests.find((item) => String(item.order).includes(order)) : null) ||
+    requests[0];
+  const redirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (!redirectedRef.current && request?.stage === 'accepted') {
+      redirectedRef.current = true;
+      if (request.order) {
+        setSelectedOrder(request.order);
+      }
+      router.replace({
+        pathname: '/user-tabs/request-accepted',
+        params: { order: request.order },
+      });
+    }
+  }, [request?.stage, request?.order, setSelectedOrder]);
+
+  if (!request) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.screen,
+          {
+            backgroundColor: palette.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          },
+        ]}
+        edges={['top']}
+      >
+        {loadingRequests ? (
+          <>
+            <ActivityIndicator size="large" color={palette.accent} />
+            <Text style={{ color: palette.textSecondary, marginTop: 12 }}>
+              Loading request details...
+            </Text>
+          </>
+        ) : (
+          <>
+            <Ionicons name="document-text-outline" size={48} color={palette.textSecondary} />
+            <Text
+              style={{
+                color: palette.textPrimary,
+                fontSize: 18,
+                fontWeight: '700',
+                marginTop: 12,
+              }}
+            >
+              No Request Found
+            </Text>
+            <View style={{ marginTop: 20, width: '100%' }}>
+              <PrimaryButton
+                label="Return to Dashboard"
+                onPress={() => router.replace('/user-tabs/user-dashboard')}
+              />
+            </View>
+          </>
+        )}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -43,14 +106,14 @@ export default function RequestSubmittedScreen() {
         <SectionCard>
           <View style={styles.rowBetween}>
             <Text style={[styles.requestId, { color: palette.textPrimary }]}>
-              Request {request.order}
+              Request {request?.order}
             </Text>
             <View style={styles.statusPill}>
               <Text style={styles.statusText}>Pending review</Text>
             </View>
           </View>
           <Text style={[styles.itemText, { color: palette.textSecondary }]}>
-            {request.item}
+            {request?.item}
           </Text>
         </SectionCard>
 
@@ -58,7 +121,7 @@ export default function RequestSubmittedScreen() {
           <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
             What happens next
           </Text>
-          {(request.timeline || []).map((item, index) => (
+          {(request?.timeline || []).map((item, index) => (
             <View key={item.title} style={styles.timelineRow}>
               <View style={styles.timelineRail}>
                 <View
@@ -69,7 +132,7 @@ export default function RequestSubmittedScreen() {
                       : { backgroundColor: '#C5CDD9' },
                   ]}
                 />
-                {index < (request.timeline?.length || 0) - 1 ? (
+                {index < (request?.timeline?.length || 0) - 1 ? (
                   <View style={styles.line} />
                 ) : null}
               </View>
@@ -93,7 +156,9 @@ export default function RequestSubmittedScreen() {
         <PrimaryButton
           label="Return to Dashboard"
           onPress={() => {
-            setSelectedOrder(request.order);
+            if (request?.order) {
+              setSelectedOrder(request.order);
+            }
             router.replace('/user-tabs/user-dashboard');
           }}
         />

@@ -8,7 +8,7 @@ import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -23,27 +23,56 @@ export default function GcashPaymentScreen() {
   const { order } = useLocalSearchParams();
   const { requests, updateRequestStage, setSelectedOrder } = useUserRequest();
   const request =
-    requests.find((item) => item.order === order) || requests[0];
+    requests.find((item) => item.order === order) ||
+    (order ? requests.find((item) => String(item.order).includes(order)) : null) ||
+    requests[0];
   const [paid, setPaid] = useState(false);
+  const processingRef = useRef(false);
 
-  useEffect(() => {
-    if (!paid) return;
-    const timer = setTimeout(() => {
-      updateRequestStage(request.order, {
+  const handleCompletePayment = async () => {
+    if (processingRef.current || !request?.order) return;
+    processingRef.current = true;
+    setPaid(true);
+
+    try {
+      await updateRequestStage(request.order, {
         stage: 'awaiting_delivery',
+        paymentStatus: 'Paid',
         badge: 'Awaiting drop-off',
         badgeVariant: 'amber',
-        detail: 'Upload courier e-receipt after booking delivery',
+        detail: 'Upload delivery proof picture and item link',
         progress: 0.4,
       });
       setSelectedOrder(request.order);
+    } catch (err) {
+      console.error('Failed to update stage on payment:', err);
+    }
+
+    setTimeout(() => {
+      setPaid(false);
+      processingRef.current = false;
       router.replace({
         pathname: '/user-tabs/delivery-confirmation',
         params: { order: request.order },
       });
     }, 1200);
-    return () => clearTimeout(timer);
-  }, [paid, request.order, setSelectedOrder, updateRequestStage]);
+  };
+
+  if (!request) {
+    return (
+      <SafeAreaView
+        style={[styles.screen, { backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center', padding: 24 }]}
+        edges={['top']}
+      >
+        <Text style={{ color: palette.textSecondary }}>Loading payment details...</Text>
+        <PrimaryButton
+          label="Return to Dashboard"
+          style={{ marginTop: 16 }}
+          onPress={() => router.replace('/user-tabs/user-dashboard')}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -54,15 +83,16 @@ export default function GcashPaymentScreen() {
         <RequestScreenHeader
           title="GCash Payment"
           subtitle="Scan the dynamic QR code to pay the service fee."
+          onBack={() => router.replace('/user-tabs/user-dashboard')}
         />
 
         <SectionCard>
           <Text style={{ color: palette.textSecondary }}>Service fee</Text>
           <Text style={[styles.fee, { color: palette.textPrimary }]}>
-            ₱{(request.fee || 0).toLocaleString()}
+            ₱{(request?.fee || 0).toLocaleString()}
           </Text>
           <Text style={{ color: palette.textSecondary }}>
-            Request {request.order}
+            Request {request?.order}
           </Text>
         </SectionCard>
 
@@ -87,7 +117,7 @@ export default function GcashPaymentScreen() {
                 {paid ? 'Payment detected' : 'Waiting for payment'}
               </Text>
               <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
-                Channel: GCash · Ref: MB-{String(request.order).replace('#', '')}
+                Channel: GCash · Ref: MB-{String(request?.order || '').replace('#', '')}
               </Text>
             </View>
           </View>
@@ -102,7 +132,7 @@ export default function GcashPaymentScreen() {
           label="I've completed payment"
           variant="secondary"
           disabled={paid}
-          onPress={() => setPaid(true)}
+          onPress={handleCompletePayment}
         />
       </ScrollView>
     </SafeAreaView>

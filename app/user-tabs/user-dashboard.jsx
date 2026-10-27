@@ -39,12 +39,18 @@ function routeForStage(stage, order) {
       return { pathname: '/user-tabs/gcash-payment', params };
     case 'awaiting_delivery':
       return { pathname: '/user-tabs/delivery-confirmation', params };
+    case 'delivery_resubmit':
+      return { pathname: '/user-tabs/delivery-resubmit', params };
     case 'ready_for_pickup':
+    case 'awaiting_pickup_response':
+    case 'reschedule_needed':
       return { pathname: '/user-tabs/ready-for-pickup', params };
     case 'return_delivery':
       return { pathname: '/user-tabs/return-delivery', params };
     case 'feedback':
       return { pathname: '/user-tabs/final-feedback', params };
+    case 'complete':
+      return { pathname: '/user-tabs/user-dashboard', params };
     default:
       return { pathname: '/user-tabs/tracker', params };
   }
@@ -102,6 +108,12 @@ function mapFirestoreRequest(docSnap) {
       detail: 'Confirm your item delivery',
       progress: 0.55,
     },
+    delivery_resubmit: {
+      badge: 'Resubmit proof',
+      badgeVariant: 'amber',
+      detail: 'Admin did not receive your item — resubmit proof',
+      progress: 0.5,
+    },
     in_progress: {
       badge: 'In restoration',
       badgeVariant: 'blue',
@@ -112,6 +124,18 @@ function mapFirestoreRequest(docSnap) {
       badge: 'Ready for pickup',
       badgeVariant: 'mint',
       detail: 'Your item is ready for pickup',
+      progress: 0.8,
+    },
+    awaiting_pickup_response: {
+      badge: 'Ready for pickup',
+      badgeVariant: 'mint',
+      detail: 'Restoration complete — confirm pickup schedule',
+      progress: 0.8,
+    },
+    reschedule_needed: {
+      badge: 'Reschedule requested',
+      badgeVariant: 'amber',
+      detail: 'Awaiting artisan approval for requested schedule',
       progress: 0.8,
     },
     return_delivery: {

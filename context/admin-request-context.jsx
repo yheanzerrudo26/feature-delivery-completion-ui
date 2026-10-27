@@ -71,6 +71,7 @@ function mapFirestoreRequest(documentSnapshot) {
     payment_directions: ['Payment directions', 'blue'],
     payment: ['Awaiting payment', 'amber'],
     awaiting_delivery: ['Awaiting delivery', 'amber'],
+    delivery_resubmit: ['Awaiting resubmission', 'amber'],
     in_progress: ['In restoration', 'blue'],
     ready_for_pickup: ['Ready for pickup', 'mint'],
     return_delivery: ['Return in transit', 'blue'],
@@ -106,6 +107,7 @@ function mapFirestoreRequest(documentSnapshot) {
       'Client',
     mobile: personal.mobile || '',
     email: personal.email || '',
+    address: personal.address || summary.address || '',
     submittedAt: formatSubmittedAt(data.createdAt),
     stage,
     badge,
@@ -145,6 +147,14 @@ function mapFirestoreRequest(documentSnapshot) {
     paymentStatus: data.paymentStatus || summary.paymentStatus || 'Unpaid',
     paymentRef: data.paymentRef || summary.paymentRef || '',
     courier: data.courier || summary.courier || null,
+    delivery: {
+      courier: delivery.courier || summary.delivery?.courier || '',
+      trackingNo: delivery.trackingNo || summary.delivery?.trackingNo || '',
+      receiptUri: delivery.receiptUri || summary.delivery?.receiptUri || null,
+      proofUri: delivery.proofUri || delivery.receiptUri || summary.delivery?.proofUri || summary.delivery?.receiptUri || null,
+      sharedLink: delivery.sharedLink || summary.delivery?.sharedLink || '',
+      resubmitComment: delivery.resubmitComment || summary.delivery?.resubmitComment || '',
+    },
     declineReason: data.declineReason || summary.declineReason || '',
     pickup: data.pickup || summary.pickup || {
       date: '',
@@ -152,9 +162,12 @@ function mapFirestoreRequest(documentSnapshot) {
       alternate: '',
       clientResponse: null,
       clientAvailability: '',
+      preferredDate: '',
+      preferredWindow: '',
     },
     completion: data.completion || summary.completion || {
       videoUploaded: false,
+      videoUri: null,
       videoName: '',
       report: '',
       conditionScore: '',
@@ -162,6 +175,31 @@ function mapFirestoreRequest(documentSnapshot) {
       careAdvice: '',
     },
     feedback: data.feedback || summary.feedback || null,
+    adminDeliveryNote:
+      data.adminDeliveryNote || summary.adminDeliveryNote || '',
+    deliveryRejectedAt:
+      data.deliveryRejectedAt || summary.deliveryRejectedAt || null,
+    itemNotReceivedReportedAt:
+      data.itemNotReceivedReportedAt || summary.itemNotReceivedReportedAt || null,
+    itemNotReceivedNote:
+      data.itemNotReceivedNote || summary.itemNotReceivedNote || '',
+    returnRescheduleDate:
+      data.returnRescheduleDate || summary.returnRescheduleDate || null,
+    returnRescheduleWindow:
+      data.returnRescheduleWindow || summary.returnRescheduleWindow || null,
+    itemNotReceivedResolved:
+      data.itemNotReceivedResolved !== undefined
+        ? data.itemNotReceivedResolved
+        : summary.itemNotReceivedResolved !== undefined
+          ? summary.itemNotReceivedResolved
+          : !data.itemNotReceivedReportedAt,
+    returnDelivery: data.returnDelivery || summary.returnDelivery || {
+      proofUri: null,
+      sharedLink: '',
+      courier: '',
+      trackingNo: '',
+      dispatchedAt: null,
+    },
   };
 }
 
@@ -224,6 +262,12 @@ export function AdminRequestProvider({ children }) {
 
     if (patch.stage !== undefined) {
       firestorePatch.status = patch.stage;
+      firestorePatch['requestSummary.stage'] = patch.stage;
+    }
+
+    if (patch.acceptedDate !== undefined) {
+      firestorePatch.acceptedDate = patch.acceptedDate;
+      firestorePatch['requestSummary.acceptedDate'] = patch.acceptedDate;
     }
 
     if (patch.declineReason !== undefined) {
@@ -258,6 +302,66 @@ export function AdminRequestProvider({ children }) {
       firestorePatch.feedback = patch.feedback;
     }
 
+    if (patch.adminDeliveryNote !== undefined) {
+      firestorePatch.adminDeliveryNote = patch.adminDeliveryNote;
+    }
+
+    if (patch.deliveryRejectedAt !== undefined) {
+      firestorePatch.deliveryRejectedAt = patch.deliveryRejectedAt;
+    }
+
+    if (patch.returnDelivery !== undefined) {
+      firestorePatch.returnDelivery = patch.returnDelivery;
+      firestorePatch['requestSummary.returnDelivery'] = patch.returnDelivery;
+    }
+
+    if (patch.badge !== undefined) {
+      firestorePatch['requestSummary.badge'] = patch.badge;
+    }
+
+    if (patch.badgeVariant !== undefined) {
+      firestorePatch['requestSummary.badgeVariant'] = patch.badgeVariant;
+    }
+
+    if (patch.detail !== undefined) {
+      firestorePatch['requestSummary.detail'] = patch.detail;
+    }
+
+    if (patch.notifications !== undefined) {
+      firestorePatch.notifications = patch.notifications;
+      firestorePatch['requestSummary.notifications'] = patch.notifications;
+    }
+
+    if (patch.timeline !== undefined) {
+      firestorePatch.timeline = patch.timeline;
+      firestorePatch['requestSummary.timeline'] = patch.timeline;
+    }
+
+    if (patch.itemNotReceivedReportedAt !== undefined) {
+      firestorePatch.itemNotReceivedReportedAt = patch.itemNotReceivedReportedAt;
+      firestorePatch['requestSummary.itemNotReceivedReportedAt'] = patch.itemNotReceivedReportedAt;
+    }
+
+    if (patch.itemNotReceivedNote !== undefined) {
+      firestorePatch.itemNotReceivedNote = patch.itemNotReceivedNote;
+      firestorePatch['requestSummary.itemNotReceivedNote'] = patch.itemNotReceivedNote;
+    }
+
+    if (patch.returnRescheduleDate !== undefined) {
+      firestorePatch.returnRescheduleDate = patch.returnRescheduleDate;
+      firestorePatch['requestSummary.returnRescheduleDate'] = patch.returnRescheduleDate;
+    }
+
+    if (patch.returnRescheduleWindow !== undefined) {
+      firestorePatch.returnRescheduleWindow = patch.returnRescheduleWindow;
+      firestorePatch['requestSummary.returnRescheduleWindow'] = patch.returnRescheduleWindow;
+    }
+
+    if (patch.itemNotReceivedResolved !== undefined) {
+      firestorePatch.itemNotReceivedResolved = patch.itemNotReceivedResolved;
+      firestorePatch['requestSummary.itemNotReceivedResolved'] = patch.itemNotReceivedResolved;
+    }
+
     await updateDoc(
       doc(db, 'serviceRequests', request.firestoreId),
       firestorePatch,
@@ -268,6 +372,11 @@ export function AdminRequestProvider({ children }) {
     (id) =>
       updateRequest(id, {
         stage: 'accepted',
+        acceptedDate: new Date().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
       }),
     [updateRequest],
   );
@@ -283,9 +392,72 @@ export function AdminRequestProvider({ children }) {
   );
 
   const confirmItemReceived = useCallback(
-    (id) =>
-      updateRequest(id, {
+    (id) => {
+      const target = requests.find((r) => r.id === id || r.firestoreId === id);
+      const prevNotifications = target?.notifications || [];
+      const newNotification = {
+        title: 'Item received by workshop',
+        detail: 'Your item was received and restoration is now in progress.',
+        date: 'Just now',
+      };
+      const prevTimeline = target?.timeline || [];
+      const updatedTimeline = prevTimeline.map((item) => {
+        if (item.title?.toLowerCase().includes('payment')) {
+          return { ...item, done: true, current: false };
+        }
+        if (item.title?.toLowerCase().includes('restoration')) {
+          return { ...item, done: false, current: true, date: 'In progress' };
+        }
+        return item;
+      });
+
+      return updateRequest(id, {
         stage: 'in_progress',
+        badge: 'In restoration',
+        badgeVariant: 'blue',
+        detail: 'Item received at workshop · Restoration is in progress',
+        clientNotification:
+          'Your item was received by the Mabuli workshop. Our artisan is now working on the restoration service.',
+        notifications: [newNotification, ...prevNotifications],
+        timeline: updatedTimeline,
+      });
+    },
+    [requests, updateRequest],
+  );
+
+  const markReturnDelivery = useCallback(
+    (id, pickupData) => {
+      const target = requests.find((r) => r.id === id || r.firestoreId === id);
+      const prevNotifications = target?.notifications || [];
+      const newNotification = {
+        title: 'Item dispatched for return',
+        detail: 'Your restored item has been dispatched for return delivery.',
+        date: 'Just now',
+      };
+      return updateRequest(id, {
+        stage: 'return_delivery',
+        badge: 'Return delivery',
+        badgeVariant: 'blue',
+        detail: 'Item dispatched · On its way to client',
+        clientNotification:
+          'Your restored item has been dispatched for return delivery.',
+        notifications: [newNotification, ...prevNotifications],
+        ...(pickupData ? { pickup: pickupData } : {}),
+      });
+    },
+    [requests, updateRequest],
+  );
+
+  /**
+   * Marks the delivery as not received, prompting the client to resubmit.
+   * Clears any previous proof so the client starts fresh.
+   */
+  const rejectDelivery = useCallback(
+    (id, adminNote = '') =>
+      updateRequest(id, {
+        stage: 'delivery_resubmit',
+        adminDeliveryNote: adminNote,
+        deliveryRejectedAt: new Date().toISOString(),
       }),
     [updateRequest],
   );
@@ -333,7 +505,9 @@ export function AdminRequestProvider({ children }) {
 
     return {
       pendingReview: byStage('pending_review'),
-      awaitingDelivery: byStage('awaiting_delivery'),
+      awaitingDelivery: requests.filter(
+        (item) => item.stage === 'awaiting_delivery' || item.stage === 'delivery_resubmit',
+      ).length,
       inProgress: byStage('in_progress'),
       rescheduleNeeded: byStage('reschedule_needed'),
       awaitingPickup: byStage('awaiting_pickup_response'),
@@ -356,9 +530,11 @@ export function AdminRequestProvider({ children }) {
       acceptRequest,
       declineRequest,
       confirmItemReceived,
+      rejectDelivery,
       sendPickupNotice,
       reschedulePickup,
       markReturnSent,
+      markReturnDelivery,
     }),
     [
       requests,
@@ -371,9 +547,11 @@ export function AdminRequestProvider({ children }) {
       acceptRequest,
       declineRequest,
       confirmItemReceived,
+      rejectDelivery,
       sendPickupNotice,
       reschedulePickup,
       markReturnSent,
+      markReturnDelivery,
     ],
   );
 
@@ -408,15 +586,21 @@ export function routeForAdminStage(stage, id) {
       return { pathname: '/admin-tabs/decline-request', params };
 
     case 'awaiting_delivery':
+    case 'delivery_resubmit':
       return { pathname: '/admin-tabs/delivery-proof', params };
 
     case 'in_progress':
     case 'awaiting_pickup_response':
+    case 'ready_for_pickup':
       return { pathname: '/admin-tabs/completion-pickup', params };
 
     case 'reschedule_needed':
-      return { pathname: '/admin-tabs/reschedule-pickup', params };
+      return { pathname: '/admin-tabs/completion-pickup', params };
 
+    case 'return_delivery':
+      return { pathname: '/admin-tabs/admin-return-delivery', params };
+
+    case 'feedback':
     case 'complete':
       return { pathname: '/admin-tabs/completed-service', params };
 

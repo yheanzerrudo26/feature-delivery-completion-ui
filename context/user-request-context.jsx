@@ -3,9 +3,13 @@ import {
   collection,
   doc,
   getDoc,
+  onSnapshot,
+  query,
   runTransaction,
   serverTimestamp,
   setDoc,
+  updateDoc,
+  where,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -15,6 +19,7 @@ import {
   useMemo,
   useState,
   useCallback,
+  useRef,
 } from 'react';
 import { auth, db } from '../lib/firebase';
 
@@ -79,6 +84,8 @@ function createInitialDraft() {
       courier: '',
       trackingNo: '',
       receiptUri: null,
+      proofUri: null,
+      sharedLink: '',
     },
     pickup: {
       scheduleWorks: true,
@@ -91,6 +98,197 @@ function createInitialDraft() {
       rating: 0,
       comments: '',
       tags: [],
+    },
+  };
+}
+
+function mapFirestoreUserRequest(docSnap) {
+  const data = docSnap.data();
+  const summary = data.requestSummary || {};
+  const assessment = data.assessment || {};
+  const itemDetails = data.item || {};
+  const delivery = data.delivery || {};
+
+  const itemName =
+    summary.item ||
+    summary.subtitle ||
+    `${itemDetails.brandModel || 'Custom leather item'} - ${
+      itemDetails.color || 'Unspecified color'
+    }`;
+
+  const stage = data.status || summary.stage || 'pending_review';
+
+  const statusDisplay = {
+    pending_review: {
+      badge: 'Pending review',
+      badgeVariant: 'amber',
+      detail: 'Waiting for Admin / Artisan review',
+      progress: 0.25,
+    },
+    declined: {
+      badge: 'Declined',
+      badgeVariant: 'amber',
+      detail: 'Your request was declined',
+      progress: null,
+    },
+    accepted: {
+      badge: 'Accepted',
+      badgeVariant: 'mint',
+      detail: 'Your request has been accepted',
+      progress: 0.35,
+    },
+    payment_directions: {
+      badge: 'Payment directions',
+      badgeVariant: 'blue',
+      detail: 'Review the payment instructions',
+      progress: 0.4,
+    },
+    payment: {
+      badge: 'Payment',
+      badgeVariant: 'blue',
+      detail: 'Complete your payment',
+      progress: 0.45,
+    },
+    awaiting_delivery: {
+      badge: 'Awaiting delivery',
+      badgeVariant: 'blue',
+      detail: 'Confirm your item delivery',
+      progress: 0.55,
+    },
+    delivery_resubmit: {
+      badge: 'Resubmit proof',
+      badgeVariant: 'amber',
+      detail: 'Admin did not receive your item — resubmit proof',
+      progress: 0.5,
+    },
+    in_progress: {
+      badge: 'In restoration',
+      badgeVariant: 'blue',
+      detail: 'Your item is being restored',
+      progress: 0.65,
+    },
+    ready_for_pickup: {
+      badge: 'Ready for pickup',
+      badgeVariant: 'mint',
+      detail: 'Your item is ready for pickup',
+      progress: 0.8,
+    },
+    awaiting_pickup_response: {
+      badge: 'Ready for pickup',
+      badgeVariant: 'mint',
+      detail: 'Restoration complete — confirm pickup schedule',
+      progress: 0.8,
+    },
+    reschedule_needed: {
+      badge: 'Reschedule requested',
+      badgeVariant: 'amber',
+      detail: 'Awaiting artisan approval for your requested schedule',
+      progress: 0.8,
+    },
+    return_delivery: {
+      badge: 'Return delivery',
+      badgeVariant: 'blue',
+      detail: 'Your item is being returned',
+      progress: 0.9,
+    },
+    feedback: {
+      badge: 'Feedback',
+      badgeVariant: 'blue',
+      detail: 'Please provide feedback on your service',
+      progress: 0.95,
+    },
+    complete: {
+      badge: 'Complete',
+      badgeVariant: 'mint',
+      detail: 'Service completed',
+      progress: 1,
+    },
+  };
+
+  const display = statusDisplay[stage] || statusDisplay.pending_review;
+
+  return {
+    ...summary,
+    firestoreId: docSnap.id,
+    order: data.order || summary.order || docSnap.id,
+    item: itemName,
+    subtitle: itemName,
+    stage,
+    createdAt: data.createdAt || null,
+    badge: display.badge,
+    badgeVariant: display.badgeVariant,
+    detail: display.detail,
+    progress: display.progress,
+    serviceProtocol:
+      assessment.protocolTitle || summary.serviceProtocol || 'Repair & Deep Conditioning',
+    fee: Number(assessment.fee ?? summary.fee ?? 0),
+    clientName:
+      data.personal?.fullName || summary.clientName || 'Client',
+    findings: assessment.findings || summary.findings || '',
+    damageTags: assessment.damageTags || summary.damageTags || [],
+    protocolSteps: assessment.protocolSteps || summary.protocolSteps || [],
+    clientNotes: assessment.clientNotes || summary.clientNotes || '',
+    declineReason: data.declineReason || summary.declineReason || '',
+    notifications: data.notifications || summary.notifications || [],
+    timeline: data.timeline || summary.timeline || [],
+    artisan: data.artisan || summary.artisan || {
+      name: 'Mabuli Artisan',
+      contact: '0917-123-4567',
+    },
+    acceptedDate: data.acceptedDate || summary.acceptedDate || 'Today',
+    turnaround: data.turnaround || summary.turnaround || '7–10 business days',
+    delivery: {
+      courier: delivery.courier || summary.delivery?.courier || '',
+      trackingNo: delivery.trackingNo || summary.delivery?.trackingNo || '',
+      receiptUri: delivery.receiptUri || summary.delivery?.receiptUri || null,
+      proofUri: delivery.proofUri || delivery.receiptUri || summary.delivery?.proofUri || summary.delivery?.receiptUri || null,
+      sharedLink: delivery.sharedLink || summary.delivery?.sharedLink || '',
+      resubmitComment: delivery.resubmitComment || summary.delivery?.resubmitComment || '',
+    },
+    paymentStatus: data.paymentStatus || summary.paymentStatus || 'Unpaid',
+    paymentRef: data.paymentRef || summary.paymentRef || '',
+    adminDeliveryNote:
+      data.adminDeliveryNote || summary.adminDeliveryNote || '',
+    deliveryRejectedAt:
+      data.deliveryRejectedAt || summary.deliveryRejectedAt || null,
+    completion: data.completion || summary.completion || {
+      videoUploaded: false,
+      videoUri: null,
+      videoName: '',
+      report: '',
+      conditionScore: '',
+      materials: '',
+      careAdvice: '',
+    },
+    pickup: data.pickup || summary.pickup || {
+      date: '',
+      window: '',
+      alternate: '',
+      clientResponse: null,
+      clientAvailability: '',
+      preferredDate: '',
+      preferredWindow: '',
+    },
+    itemNotReceivedReportedAt:
+      data.itemNotReceivedReportedAt || summary.itemNotReceivedReportedAt || null,
+    itemNotReceivedNote:
+      data.itemNotReceivedNote || summary.itemNotReceivedNote || '',
+    returnRescheduleDate:
+      data.returnRescheduleDate || summary.returnRescheduleDate || null,
+    returnRescheduleWindow:
+      data.returnRescheduleWindow || summary.returnRescheduleWindow || null,
+    itemNotReceivedResolved:
+      data.itemNotReceivedResolved !== undefined
+        ? data.itemNotReceivedResolved
+        : summary.itemNotReceivedResolved !== undefined
+          ? summary.itemNotReceivedResolved
+          : !data.itemNotReceivedReportedAt,
+    returnDelivery: data.returnDelivery || summary.returnDelivery || {
+      proofUri: null,
+      sharedLink: '',
+      courier: '',
+      trackingNo: '',
+      dispatchedAt: null,
     },
   };
 }
@@ -188,25 +386,72 @@ export function UserRequestProvider({ children }) {
   const [draft, setDraft] = useState(createInitialDraft);
   const [requests, setRequests] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+
+  const requestsRef = useRef(requests);
+  useEffect(() => {
+    requestsRef.current = requests;
+  }, [requests]);
 
   const [userProfile, setUserProfile] = useState(
     createDefaultUserProfile,
   );
 
-  // Wait for Firebase authentication before reading the profile.
+  // Wait for Firebase authentication before reading the profile and requests.
   useEffect(() => {
     let active = true;
+    let unsubscribeRequests = null;
 
-    const unsubscribe = onAuthStateChanged(
+    const unsubscribeAuth = onAuthStateChanged(
       auth,
       async (currentUser) => {
         if (!active) {
           return;
         }
 
+        if (unsubscribeRequests) {
+          unsubscribeRequests();
+          unsubscribeRequests = null;
+        }
+
         if (!currentUser) {
           setUserProfile(createDefaultUserProfile());
+          setRequests([]);
+          setLoadingRequests(false);
           return;
+        }
+
+        setLoadingRequests(true);
+
+        // Listen for requests of the logged in user
+        try {
+          const userRequestsQuery = query(
+            collection(db, 'serviceRequests'),
+            where('userId', '==', currentUser.uid),
+          );
+
+          unsubscribeRequests = onSnapshot(
+            userRequestsQuery,
+            (snapshot) => {
+              if (!active) return;
+              const userRequests = snapshot.docs
+                .map(mapFirestoreUserRequest)
+                .sort((a, b) => {
+                  const aTime = a.createdAt?.toMillis?.() || 0;
+                  const bTime = b.createdAt?.toMillis?.() || 0;
+                  return bTime - aTime;
+                });
+              setRequests(userRequests);
+              setLoadingRequests(false);
+            },
+            (error) => {
+              console.error('Failed to load user service requests:', error);
+              if (active) setLoadingRequests(false);
+            },
+          );
+        } catch (error) {
+          console.error('Error attaching requests listener:', error);
+          if (active) setLoadingRequests(false);
         }
 
         try {
@@ -283,7 +528,10 @@ export function UserRequestProvider({ children }) {
 
     return () => {
       active = false;
-      unsubscribe();
+      unsubscribeAuth();
+      if (unsubscribeRequests) {
+        unsubscribeRequests();
+      }
     };
   }, []);
 
@@ -435,17 +683,108 @@ export function UserRequestProvider({ children }) {
     (label) => draft.photos[label]?.status === 'pass',
   );
 
-  // Updates the current session only.
-  // Persist admin stage changes separately to Firestore.
-  const updateRequestStage = useCallback((order, patch) => {
-    setRequests((current) =>
-      current.map((request) =>
-        request.order === order
-          ? { ...request, ...patch }
-          : request,
-      ),
-    );
-  }, []);
+  // Updates local state and persists stage changes to Firestore.
+  const updateRequestStage = useCallback(
+    async (order, patch) => {
+      setRequests((current) =>
+        current.map((request) =>
+          request.order === order
+            ? { ...request, ...patch }
+            : request,
+        ),
+      );
+
+      try {
+        const target = requestsRef.current.find((r) => r.order === order);
+        const firestoreId = target?.firestoreId;
+        if (firestoreId) {
+          const firestorePatch = {
+            updatedAt: serverTimestamp(),
+          };
+          if (patch.stage !== undefined) {
+            firestorePatch.status = patch.stage;
+            firestorePatch['requestSummary.stage'] = patch.stage;
+          }
+          if (patch.badge !== undefined) {
+            firestorePatch['requestSummary.badge'] = patch.badge;
+          }
+          if (patch.badgeVariant !== undefined) {
+            firestorePatch['requestSummary.badgeVariant'] = patch.badgeVariant;
+          }
+          if (patch.detail !== undefined) {
+            firestorePatch['requestSummary.detail'] = patch.detail;
+          }
+          if (patch.progress !== undefined) {
+            firestorePatch['requestSummary.progress'] = patch.progress;
+          }
+          if (patch.delivery !== undefined) {
+            firestorePatch.delivery = patch.delivery;
+            firestorePatch['requestSummary.delivery'] = patch.delivery;
+          }
+          if (patch.paymentStatus !== undefined) {
+            firestorePatch.paymentStatus = patch.paymentStatus;
+            firestorePatch['requestSummary.paymentStatus'] = patch.paymentStatus;
+          }
+          if (patch.feedback !== undefined) {
+            firestorePatch.feedback = patch.feedback;
+            firestorePatch['requestSummary.feedback'] = patch.feedback;
+          }
+          if ('adminDeliveryNote' in patch) {
+            firestorePatch.adminDeliveryNote = patch.adminDeliveryNote;
+            firestorePatch['requestSummary.adminDeliveryNote'] = patch.adminDeliveryNote;
+          }
+          if ('deliveryRejectedAt' in patch) {
+            firestorePatch.deliveryRejectedAt = patch.deliveryRejectedAt;
+            firestorePatch['requestSummary.deliveryRejectedAt'] = patch.deliveryRejectedAt;
+          }
+          if (patch.pickup !== undefined) {
+            firestorePatch.pickup = patch.pickup;
+            firestorePatch['requestSummary.pickup'] = patch.pickup;
+          }
+          if (patch.completion !== undefined) {
+            firestorePatch.completion = patch.completion;
+            firestorePatch['requestSummary.completion'] = patch.completion;
+          }
+          if (patch.itemNotReceivedReportedAt !== undefined) {
+            firestorePatch.itemNotReceivedReportedAt = patch.itemNotReceivedReportedAt;
+            firestorePatch['requestSummary.itemNotReceivedReportedAt'] = patch.itemNotReceivedReportedAt;
+          }
+          if (patch.itemNotReceivedNote !== undefined) {
+            firestorePatch.itemNotReceivedNote = patch.itemNotReceivedNote;
+            firestorePatch['requestSummary.itemNotReceivedNote'] = patch.itemNotReceivedNote;
+          }
+          if (patch.returnRescheduleDate !== undefined) {
+            firestorePatch.returnRescheduleDate = patch.returnRescheduleDate;
+            firestorePatch['requestSummary.returnRescheduleDate'] = patch.returnRescheduleDate;
+          }
+          if (patch.returnRescheduleWindow !== undefined) {
+            firestorePatch.returnRescheduleWindow = patch.returnRescheduleWindow;
+            firestorePatch['requestSummary.returnRescheduleWindow'] = patch.returnRescheduleWindow;
+          }
+          if (patch.itemNotReceivedResolved !== undefined) {
+            firestorePatch.itemNotReceivedResolved = patch.itemNotReceivedResolved;
+            firestorePatch['requestSummary.itemNotReceivedResolved'] = patch.itemNotReceivedResolved;
+          }
+          if (patch.notifications !== undefined) {
+            firestorePatch.notifications = patch.notifications;
+            firestorePatch['requestSummary.notifications'] = patch.notifications;
+          }
+          if (patch.returnDelivery !== undefined) {
+            firestorePatch.returnDelivery = patch.returnDelivery;
+            firestorePatch['requestSummary.returnDelivery'] = patch.returnDelivery;
+          }
+          if (patch.timeline !== undefined) {
+            firestorePatch.timeline = patch.timeline;
+            firestorePatch['requestSummary.timeline'] = patch.timeline;
+          }
+          await updateDoc(doc(db, 'serviceRequests', firestoreId), firestorePatch);
+        }
+      } catch (err) {
+        console.error('Failed to sync request stage to Firestore:', err);
+      }
+    },
+    [],
+  );
 
   /**
    * Creates a service request in Firestore.
@@ -595,8 +934,9 @@ export function UserRequestProvider({ children }) {
       delivery: {
         courier: submittedDraft.delivery.courier || '',
         trackingNo: submittedDraft.delivery.trackingNo || '',
-        receiptUri:
-          submittedDraft.delivery.receiptUri || null,
+        receiptUri: submittedDraft.delivery.receiptUri || null,
+        proofUri: submittedDraft.delivery.proofUri || submittedDraft.delivery.receiptUri || null,
+        sharedLink: submittedDraft.delivery.sharedLink || '',
       },
       pickup: { ...submittedDraft.pickup },
       feedback: { ...submittedDraft.feedback },
@@ -633,6 +973,7 @@ export function UserRequestProvider({ children }) {
     () => ({
       draft,
       requests,
+      loadingRequests,
       selectedOrder,
       setSelectedOrder,
       userProfile,
@@ -657,6 +998,7 @@ export function UserRequestProvider({ children }) {
     [
       draft,
       requests,
+      loadingRequests,
       selectedOrder,
       userProfile,
       updatePersonalField,

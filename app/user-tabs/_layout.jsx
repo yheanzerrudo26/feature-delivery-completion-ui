@@ -18,6 +18,7 @@ const HIDDEN = [
   'payment-directions',
   'gcash-payment',
   'delivery-confirmation',
+  'delivery-resubmit',
   'ready-for-pickup',
   'return-delivery',
   'final-feedback',

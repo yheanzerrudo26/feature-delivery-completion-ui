@@ -16,11 +16,29 @@ export default function RequestDeclinedScreen() {
   const { order } = useLocalSearchParams();
   const { requests } = useUserRequest();
   const request =
-    requests.find((item) => item.order === order) || requests[0];
+    requests.find((item) => item.order === order) ||
+    (order ? requests.find((item) => String(item.order).includes(order)) : null) ||
+    requests[0];
 
   const reason =
-    request.declineReason ||
+    request?.declineReason ||
     'The damage-detail photo does not show the full loose seam. Please recapture a closer shot of the affected area and resubmit.';
+
+  if (!request) {
+    return (
+      <SafeAreaView
+        style={[styles.screen, { backgroundColor: palette.background, justifyContent: 'center', alignItems: 'center', padding: 24 }]}
+        edges={['top']}
+      >
+        <Text style={{ color: palette.textSecondary }}>Loading request...</Text>
+        <PrimaryButton
+          label="Return to Dashboard"
+          style={{ marginTop: 16 }}
+          onPress={() => router.replace('/user-tabs/user-dashboard')}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -44,11 +62,11 @@ export default function RequestDeclinedScreen() {
 
         <SectionCard>
           <Text style={[styles.requestId, { color: palette.textPrimary }]}>
-            Request {request.order}
+            Request {request?.order}
           </Text>
-          <Text style={{ color: palette.textSecondary }}>{request.item}</Text>
+          <Text style={{ color: palette.textSecondary }}>{request?.item}</Text>
           <Text style={{ color: palette.textSecondary, marginTop: 4 }}>
-            {request.serviceProtocol}
+            {request?.serviceProtocol}
           </Text>
         </SectionCard>
 

@@ -9,7 +9,8 @@ import { useAppTheme } from '@/context/app-theme-context';
 import { useUserRequest } from '@/context/user-request-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const HIGHLIGHTS = ['Craftsmanship', 'Communication', 'Care', 'Delivery'];
 
@@ -25,24 +26,63 @@ export default function FinalFeedbackScreen() {
     setSelectedOrder,
   } = useUserRequest();
   const request =
-    requests.find((item) => item.order === order) || requests[0];
+    requests.find((item) => item.order === order) ||
+    (order ? requests.find((item) => String(item.order).includes(order)) : null) ||
+    requests[0];
+
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!request) {
+    return (
+      <KeyboardAwareScreen
+        style={{ backgroundColor: palette.background }}
+        contentContainerStyle={[
+          styles.container,
+          { justifyContent: 'center', alignItems: 'center', flex: 1 },
+        ]}
+      >
+        <Text style={{ color: palette.textSecondary }}>Loading request details...</Text>
+        <PrimaryButton
+          label="Return to Dashboard"
+          style={{ marginTop: 16 }}
+          onPress={() => router.replace('/user-tabs/user-dashboard')}
+        />
+      </KeyboardAwareScreen>
+    );
+  }
 
   const canSubmit =
     draft.feedback.received &&
     draft.feedback.rating > 0 &&
     draft.feedback.comments.trim();
 
-  const handleSubmit = () => {
-    updateRequestStage(request.order, {
-      stage: 'complete',
-      badge: 'Complete',
-      badgeVariant: 'mint',
-      detail: 'Service completed and feedback submitted',
-      progress: null,
-      feedback: { ...draft.feedback },
-    });
-    setSelectedOrder(request.order);
-    router.replace('/user-tabs/user-dashboard');
+  const handleSubmit = async () => {
+    if (!request?.order || !canSubmit || submitting) return;
+    setSubmitting(true);
+    try {
+      await updateRequestStage(request.order, {
+        stage: 'complete',
+        badge: 'Complete',
+        badgeVariant: 'mint',
+        detail: 'Service completed and feedback submitted',
+        progress: null,
+        feedback: {
+          ...draft.feedback,
+          date: new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+        },
+      });
+      setSelectedOrder(request.order);
+
+      // Immediately navigate back to user dashboard upon completion
+      router.replace('/user-tabs/user-dashboard');
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to submit feedback.');
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -55,6 +95,7 @@ export default function FinalFeedbackScreen() {
         title="Final Confirmation & Feedback"
         subtitle="Confirm receipt and share your restoration experience."
         rightLabel="6 of 6"
+        onBack={() => router.replace('/user-tabs/user-dashboard')}
       />
 
       <SectionCard>
@@ -184,10 +225,16 @@ export default function FinalFeedbackScreen() {
       </View>
 
       <PrimaryButton
-        label="Submit Feedback"
+        label={submitting ? 'Submitting…' : 'Submit Feedback'}
         icon="paper-plane"
-        disabled={!canSubmit}
+        disabled={!canSubmit || submitting}
         onPress={handleSubmit}
+      />
+
+      <PrimaryButton
+        label="Return to Dashboard"
+        variant="secondary"
+        onPress={() => router.replace('/user-tabs/user-dashboard')}
       />
     </KeyboardAwareScreen>
   );

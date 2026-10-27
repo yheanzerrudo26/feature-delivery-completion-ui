@@ -30,6 +30,12 @@ export default function AdminFormsScreen() {
 
   const visible = requests.filter((item) => {
     if (filter === 'all') return item.stage !== 'declined';
+    if (filter === 'awaiting_delivery') {
+      return item.stage === 'awaiting_delivery' || item.stage === 'delivery_resubmit';
+    }
+    if (filter === 'complete') {
+      return item.stage === 'complete' || item.stage === 'feedback';
+    }
     return item.stage === filter;
   });
 
